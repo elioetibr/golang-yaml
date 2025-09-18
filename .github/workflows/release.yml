@@ -1,0 +1,199 @@
+name: Release
+on: [push, pull_request]
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  gitversion:
+    name: GitVersion
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # Cache GitVersion tool
+      - name: Cache GitVersion
+        uses: actions/cache@v4
+        with:
+          path: ~/.dotnet/tools
+          key: ${{ runner.os }}-gitversion-6.x
+          restore-keys: |
+            ${{ runner.os }}-gitversion-
+
+      - name: Install GitVersion
+        id: install-gitversion
+        uses: gittools/actions/gitversion/setup@v4.1.0
+        with:
+          versionSpec: '6.x'
+          preferLatestVersion: true
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v4.1.0
+    outputs:
+      major: ${{ steps.gitversion.outputs.major }}
+      minor: ${{ steps.gitversion.outputs.minor }}
+      majorMinorPatch: ${{ steps.gitversion.outputs.majorMinorPatch }}
+      semVer: ${{ steps.gitversion.outputs.semVer }}
+      version: ${{ github.ref_name == github.event.repository.default_branch && steps.gitversion.outputs.majorMinorPatch || steps.gitversion.outputs.semVer }}
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: [ gitversion ]
+    strategy:
+      fail-fast: false
+      matrix:
+        go:
+          - "1.25"
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      # Cache Go modules and build cache
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ matrix.go }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ matrix.go }}-
+            ${{ runner.os }}-go-
+
+      - name: Set up Go ${{ matrix.go }}
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Go Version
+        run: go version
+
+      - name: Go Vet
+        run: go vet ./...
+
+      - name: Run tests
+        run: go test -v ./pkg/...
+
+  release:
+    name: Release
+    if: ${{ success() && github.ref_name == github.event.repository.default_branch }}
+    runs-on: ubuntu-latest
+    needs: [ gitversion, test ]
+    steps:
+      - name: GitHub Actions Bot Configuration
+        id: bot_config
+        env:
+          GITHUB_BOT_EMAIL: elio@elio.eti.br
+          GITHUB_BOT_USERNAME: Elio Severo Junior
+        shell: bash -l {0}
+        run: |
+          #!/usr/bin/env bash
+          
+          set -euo pipefail
+          
+          echo "GITHUB_BOT_EMAIL=${{ env.GITHUB_BOT_EMAIL }}" >> $GITHUB_ENV
+          echo "GITHUB_BOT_USERNAME=${{ env.GITHUB_BOT_USERNAME }}" >> $GITHUB_ENV
+          
+          git config --global author.email "${{ env.GITHUB_BOT_EMAIL }}"
+          git config --global author.name "${{ env.GITHUB_BOT_USERNAME }}"
+          git config --global committer.email "${{ env.GITHUB_BOT_EMAIL }}"
+          git config --global committer.name "${{ env.GITHUB_BOT_USERNAME }}"
+          git config --global init.defaultBranch ${{ github.event.repository.default_branch }}
+          git config --global pull.ff only
+          git config --global pull.rebase true
+          git config --global push.autosetupremote true
+          git config --global push.followTags true
+          git config --global user.email "${{ env.GITHUB_BOT_EMAIL }}"
+          git config --global user.name "${{ env.GITHUB_BOT_USERNAME }}"
+          
+          if [[ "${{ github.event.act }}" == "true" ]];
+          then
+          echo "Disabling GPG Configurations..."
+          git config --local --unset commit.gpgsign 2>/dev/null
+          git config --local --unset gpg.program 2>/dev/null
+          git config --local --unset user.signingkey 2>/dev/null
+          else
+          echo "Initializing Git Repository..."
+          git init ${{ github.workspace }}
+          fi
+          
+          echo "bot_email=${{ env.GITHUB_BOT_EMAIL }}" >> $GITHUB_OUTPUT
+          echo "bot_user=${{ env.GITHUB_BOT_USERNAME }}" >> $GITHUB_OUTPUT
+
+      - name: Generate GitHub App Token
+        uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+
+      - name: Check out code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Tag
+        id: tag
+        shell: bash -l {0}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          #!/usr/bin/env bash
+          
+          function tagger() {
+            VERSION=$1
+            echo "Releasing Version: ${VERSION}"
+            TAG_EXISTS=$(git ls-remote -q --tags | grep -q "refs/tags/${VERSION}$" && echo true || echo false)
+            if [[ "${TAG_EXISTS}" = true ]];
+            then
+              HAS_RELEASE=$(gh release list --json tagName -q '.[].tagName' | grep -E "^(${VERSION})$" && echo true || echo false)
+              if [[ "${HAS_RELEASE}" == true ]];
+              then
+                gh release delete --yes ${VERSION}
+              fi
+              git push origin --delete ${VERSION}
+              git tag -d ${VERSION}
+            fi
+          
+            echo
+            git tag -a ${VERSION} -m "chore: Release Version ${VERSION}"
+            git push -f --tags --follow-tags
+            git push --set-upstream origin ${{ github.ref_name }}
+            echo
+            echo
+          }
+          
+          tagger "v${{ needs.gitversion.outputs.version }}"
+          if [[ "${{ github.ref_name  }}" == "${{ github.event.repository.default_branch }}" ]];
+          then
+            tagger "v${{ needs.gitversion.outputs.major }}.${{ needs.gitversion.outputs.minor }}"
+            tagger "v${{ needs.gitversion.outputs.major }}"
+          fi
+
+      - name: Release
+        id: release
+        shell: bash -l {0}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          #!/usr/bin/env bash
+          
+          if [[ "${{ github.ref_name  }}" == "${{ github.event.repository.default_branch }}" ]];
+          then
+            gh release list | grep Draft | awk '{print $1 " \t"}' | while read -r draft; do echo "Removing Draft Releases: ${draft}"; gh release delete --yes "${draft}"; done
+            gh release create v${{ needs.gitversion.outputs.version }} --generate-notes --verify-tag --latest
+          fi
