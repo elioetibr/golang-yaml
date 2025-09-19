@@ -30,7 +30,7 @@ architecture: "amd64"
 # additionalProperties: false
 # @schema
 # -- AWS Account ID
-awsAccountId: ""
+awsAccountId: "218894879100"
 
 # @schema
 # type: integer
