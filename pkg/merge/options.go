@@ -75,8 +75,8 @@ const (
 func DefaultOptions() *Options {
 	return &Options{
 		Strategy:           StrategyDeep,
-		PreserveComments:   true,  // Always preserve comments by default
-		PreserveBlankLines: true,  // Always preserve blank lines by default
+		PreserveComments:   true, // Always preserve comments by default
+		PreserveBlankLines: true, // Always preserve blank lines by default
 		ArrayMergeStrategy: ArrayReplace,
 		OverrideEmpty:      false,
 		MergeAnchors:       true,

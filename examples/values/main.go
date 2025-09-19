@@ -3,13 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"runtime"
 
-	"github.com/elioetibr/golang-yaml/pkg/node"
-	"github.com/elioetibr/golang-yaml/pkg/parser"
-	"github.com/elioetibr/golang-yaml/pkg/serializer"
+	"github.com/elioetibr/golang-yaml/pkg/merge"
 )
 
 func main() {

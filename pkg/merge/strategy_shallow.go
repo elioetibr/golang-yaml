@@ -1,8 +1,6 @@
 package merge
 
 import (
-	"fmt"
-
 	"github.com/elioetibr/golang-yaml/pkg/node"
 )
 

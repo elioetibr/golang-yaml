@@ -148,11 +148,6 @@ settings:
 }
 
 func fileMergeDemo(dir string) {
-	// Create test files
-	baseFile := filepath.Join(dir, "base.yaml")
-	overrideFile := filepath.Join(dir, "override.yaml")
-	outputFile := filepath.Join(dir, "merged.yaml")
-
 	// For demo, we'll use the values example if it exists
 	valuesDir := filepath.Join(filepath.Dir(dir), "values")
 	valuesFile := filepath.Join(valuesDir, "values.yaml")
