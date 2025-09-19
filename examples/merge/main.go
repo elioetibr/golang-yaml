@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	fmt.Println("=== YAML Merge Feature Demo ===\n")
+	fmt.Println("=== YAML Merge Feature Demo ===")
 
 	// Get directory of main.go
 	_, filename, _, _ := runtime.Caller(0)
