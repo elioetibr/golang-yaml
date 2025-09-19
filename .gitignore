@@ -1987,3 +1987,4 @@ $RECYCLE.BIN/
 ### Personal Ignores ###
 /test/official-suite-report.json
 /test/official-suite-report.md
+/**/values-overridden.yaml
