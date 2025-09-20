@@ -155,7 +155,7 @@ func (tr *TagResolver) handleInt(value string) (interface{}, error) {
 func (tr *TagResolver) handleFloat(value string) (interface{}, error) {
 	value = strings.TrimSpace(value)
 
-	// Handle special float values
+	// Handle special float values-with-comments
 	switch strings.ToLower(value) {
 	case ".inf", "+.inf", "inf", "+inf":
 		return math.Inf(1), nil // +Inf

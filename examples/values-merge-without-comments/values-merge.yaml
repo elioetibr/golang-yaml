@@ -1,0 +1,10 @@
+nameOverride: "test" # Test Merging Override
+fullnameOverride: "test"
+architecture: "arm64"
+awsAccountId: "825534976873"
+replicaCount: 10
+strategy: # Deployment strategy
+  type: RollingUpdate # This is the rolling pod updates
+  rollingUpdate:
+    maxSurge: 25%
+    maxUnavailable: 0

@@ -48,7 +48,7 @@ func FuzzParser(f *testing.F) {
 
 // FuzzMarshalUnmarshal tests marshal/unmarshal with random data
 func FuzzMarshalUnmarshal(f *testing.F) {
-	// Add seed values
+	// Add seed values-with-comments
 	f.Add("test", 123, true)
 	f.Add("", 0, false)
 	f.Add("special chars: \n\t\"'", -456, true)

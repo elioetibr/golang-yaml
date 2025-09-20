@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=values.schema.json
-# Default values for ucs-moderation.
+# Default values-with-comments for ucs-moderation.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -30,7 +30,7 @@ architecture: "amd64"
 # additionalProperties: false
 # @schema
 # -- AWS Account ID
-awsAccountId: ""
+awsAccountId: "218894879100"
 
 # @schema
 # type: integer

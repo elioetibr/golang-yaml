@@ -122,13 +122,20 @@ type section struct {
 
 // detectSections detects section boundaries in a mapping
 func (ss *SectionSorter) detectSections(mapping *node.MappingNode) []section {
+	// First, transfer inter-field comments to fix comment association
+	// Comments between key-value pairs are often attached to the previous value
+	// instead of the next key where they logically belong
+	pairs := make([]*node.MappingPair, len(mapping.Pairs))
+	copy(pairs, mapping.Pairs)
+	ss.transferInterFieldComments(pairs)
+
 	var sections []section
 	currentSection := section{
 		startIndex: 0,
 		pairs:      []*node.MappingPair{},
 	}
 
-	for i, pair := range mapping.Pairs {
+	for i, pair := range pairs {
 		// Check if this pair's comment marks a section
 		if ss.isSectionMarker(pair.Key) {
 			// Save current section if it has pairs
@@ -136,15 +143,7 @@ func (ss *SectionSorter) detectSections(mapping *node.MappingNode) []section {
 				sections = append(sections, currentSection)
 			}
 
-			// Add marker as its own section (don't sort markers)
-			sections = append(sections, section{
-				startIndex: i,
-				endIndex:   i,
-				isMarker:   true,
-				pairs:      []*node.MappingPair{pair},
-			})
-
-			// Start new section
+			// Don't include the marker pair in any section - just start a new section
 			currentSection = section{
 				startIndex: i + 1,
 				pairs:      []*node.MappingPair{},
@@ -204,6 +203,34 @@ func (ss *SectionSorter) detectSequenceSections(seq *node.SequenceNode) []sectio
 	}
 
 	return sections
+}
+
+// transferInterFieldComments moves comments from value nodes to the next key node
+// This fixes the parser's comment association where comments between pairs
+// get attached to the previous value instead of the next key
+func (ss *SectionSorter) transferInterFieldComments(pairs []*node.MappingPair) {
+	for i := 0; i < len(pairs)-1; i++ {
+		// Check if the value has a head comment that might belong to the next key
+		if scalar, ok := pairs[i].Value.(*node.ScalarNode); ok {
+			if scalar.HeadComment != nil && len(scalar.HeadComment.Comments) > 0 {
+				// Check if any comment contains section markers
+				for _, comment := range scalar.HeadComment.Comments {
+					for _, marker := range ss.config.SectionMarkers {
+						if strings.Contains(comment, marker) {
+							// This comment should belong to the next key
+							if nextKey, ok := pairs[i+1].Key.(*node.ScalarNode); ok {
+								if nextKey.HeadComment == nil {
+									nextKey.HeadComment = scalar.HeadComment
+									scalar.HeadComment = nil
+								}
+							}
+							break
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 // isSectionMarker checks if a node's comment marks a section boundary

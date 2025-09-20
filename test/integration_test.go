@@ -471,7 +471,7 @@ func TestStreaming(t *testing.T) {
 	// Create encoder
 	enc := encoder.NewEncoder(&buf)
 
-	// Encode multiple values
+	// Encode multiple values-with-comments
 	data1 := map[string]string{"type": "first"}
 	data2 := map[string]string{"type": "second"}
 

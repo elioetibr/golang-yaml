@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=values.schema.json
+# Default values-with-comments for ucs-moderation.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# @schema
+# type: string
+# additionalProperties: false
+# @schema
+# -- Override for chart name generation. When set, replaces the default chart name from Chart.yaml in resource naming
+nameOverride: ""
+
+# @schema
+# type: string
+# additionalProperties: false
+# @schema
+# -- Complete override for resource naming. When set, this exact name is used for all Kubernetes resources instead of generated names
+fullnameOverride: ""
+
+# @schema
+# enum: ["amd64", "arm64"]
+# @schema
+# -- Target CPU architecture for container scheduling and node selection
+# Ensures pods run on compatible nodes (amd64 for Intel/AMD, arm64 for ARM processors)
+architecture: "amd64"
+
+# @schema
+# enum: ["218894879100", "825534976873"]
+# required: true
+# additionalProperties: false
+# @schema
+# -- AWS Account ID
+awsAccountId: "218894879100"
+
+# @schema
+# type: integer
+# exclusiveMinimum: 0
+# maximum: 500
+# @schema
+# -- Number of application pod replicas to maintain for high availability and load distribution
+replicaCount: 1
+
+# @schema
+# additionalProperties: false
+# @schema
+# -- Kubernetes deployment strategy for managing pod updates and ensuring zero-downtime deployments
+strategy:
+  # -- Strategy type: RollingUpdate for gradual replacement, Recreate for immediate replacement
+  type: RollingUpdate
+
+  # @schema
+  # additionalProperties: false
+  # @schema
+  rollingUpdate:
+    # -- Maximum extra pods allowed during update (can be number or percentage like "25%")
+    maxSurge: 1
+    # -- Maximum pods that can be unavailable during update to maintain service availability
+    maxUnavailable: 0

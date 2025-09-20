@@ -23,7 +23,7 @@ func Unmarshal(data []byte, v interface{}) error {
 	return nodeToValue(n, reflect.ValueOf(v))
 }
 
-// Decoder reads and decodes YAML values from an input stream
+// Decoder reads and decodes YAML values-with-comments from an input stream
 type Decoder struct {
 	reader io.Reader
 	buffer []byte
@@ -207,7 +207,7 @@ func mappingToMap(n *node.MappingNode, v reflect.Value) error {
 			return fmt.Errorf("non-scalar map keys not supported")
 		}
 
-		// Create values for key and value
+		// Create values-with-comments for key and value
 		keyVal := reflect.New(v.Type().Key()).Elem()
 		valVal := reflect.New(v.Type().Elem()).Elem()
 

@@ -42,7 +42,7 @@ func (b *ConfigBuilder) ByKey() *ConfigBuilder {
 	return b
 }
 
-// ByValue sets sorting by values (for sequences and mappings)
+// ByValue sets sorting by values-with-comments (for sequences and mappings)
 func (b *ConfigBuilder) ByValue() *ConfigBuilder {
 	b.sortConfig.SortBy = SortByValue
 	return b
