@@ -44,14 +44,33 @@ A comprehensive YAML 1.2.2 compliant library for Go with advanced features for p
 
 ## Features
 
+### Core Features
 - ✅ **YAML 1.2.2 Specification Compliance** (100% official test suite pass rate)
 - 🏆 **Fully Tested**: Passes all 351 tests from the official YAML test suite
-- 🚀 **Advanced Features**: Anchors, aliases, tags, merge keys, multi-document support
-- 🎨 **Formatting & Sorting**: Configurable formatting and multiple sorting strategies
-- 💾 **Preservation**: Comments and blank lines preservation for round-trip parsing
-- ⚡ **Performance**: Optimized for speed with comprehensive benchmarks
-- 🛡️ **Safety**: Panic-resistant with proper error handling
-- 📝 **Rich API**: Both low-level AST manipulation and high-level Marshal/Unmarshal
+- 🛡️ **Safety**: Panic-resistant decoder with comprehensive error handling
+- ⚡ **Performance**: Optimized for speed with minimal allocations
+
+### YAML Processing
+- 📄 **Multi-document support**: Parse and serialize YAML streams with multiple documents
+- ⚓ **Anchors & Aliases**: Full support with automatic resolution
+- 🏷️ **Tags**: Support for YAML tags including custom tags
+- 🔀 **Merge Keys**: Full support for merge keys (<<) in mappings
+- 📝 **All Scalar Styles**: Plain, single-quoted, double-quoted, literal (|), folded (>)
+
+### Advanced Capabilities
+- 🎯 **YAML Merging**: Multiple merge strategies (deep, shallow, override)
+- 🔄 **Round-trip Preservation**: Maintains comments, formatting, and structure
+- 📐 **Sorting**: Sort YAML keys/values with custom strategies
+- 🎨 **Formatting**: Configurable indentation, line width, and styles
+- 💬 **Comment Preservation**: Keep comments and blank lines intact
+- 🔍 **Node Manipulation**: Low-level AST access for advanced use cases
+
+### Developer Experience
+- 📦 **Marshal/Unmarshal API**: Familiar interface similar to encoding/json
+- 🔧 **Flexible Options**: Extensive configuration for parsing and serialization
+- 🌊 **Stream Support**: Efficient encoding/decoding with io.Reader/Writer
+- 🎭 **Multiple APIs**: High-level (Marshal/Unmarshal) and low-level (AST) interfaces
+- 📊 **Error Handling**: Detailed error messages with line/column information
 
 ## Installation
 
@@ -69,8 +88,8 @@ package main
 import (
     "fmt"
     "log"
-    "yaml/pkg/encoder"
-    "yaml/pkg/decoder"
+    "github.com/elioetibr/golang-yaml/pkg/encoder"
+    "github.com/elioetibr/golang-yaml/pkg/decoder"
 )
 
 func main() {
@@ -116,6 +135,11 @@ func main() {
 #### Working with Anchors and Aliases
 
 ```go
+import (
+    "github.com/elioetibr/golang-yaml/pkg/parser"
+    "github.com/elioetibr/golang-yaml/pkg/decoder"
+)
+
 yamlData := `
 defaults: &defaults
   timeout: 30
@@ -132,14 +156,32 @@ service2:
   port: 8081
 `
 
+// Parse with anchor resolution
 root, err := parser.ParseString(yamlData)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Or decode directly to struct
+var services map[string]interface{}
+err = decoder.Unmarshal([]byte(yamlData), &services)
 // Anchors and aliases are automatically resolved
 ```
 
 #### Sorting YAML Content
 
 ```go
-import "yaml/pkg/transform"
+import (
+    "github.com/elioetibr/golang-yaml/pkg/parser"
+    "github.com/elioetibr/golang-yaml/pkg/serializer"
+    "github.com/elioetibr/golang-yaml/pkg/transform"
+)
+
+yamlData := `
+zebra: last
+apple: first
+middle: center
+`
 
 // Parse YAML
 root, _ := parser.ParseString(yamlData)
@@ -156,11 +198,37 @@ sorted := sorter.Sort(root)
 
 // Serialize back
 output, _ := serializer.SerializeToString(sorted, nil)
+fmt.Println(output)
+// Output:
+// apple: first
+// middle: center
+// zebra: last
 ```
 
 #### Preserving Comments
 
 ```go
+import (
+    "github.com/elioetibr/golang-yaml/pkg/parser"
+    "github.com/elioetibr/golang-yaml/pkg/serializer"
+)
+
+yamlWithComments := `
+# Application configuration
+app:
+  name: MyApp  # Application name
+  version: 1.0 # Current version
+
+# Database settings
+database:
+  host: localhost
+  port: 5432  # PostgreSQL default port
+`
+
+// Parse with comments preservation
+root, _ := parser.ParseString(yamlWithComments)
+
+// Serialize with comments preserved
 opts := &serializer.Options{
     PreserveComments: true,
     Indent:          2,
@@ -168,6 +236,7 @@ opts := &serializer.Options{
 
 output, err := serializer.SerializeToString(root, opts)
 // Comments are preserved in output
+fmt.Println(output)
 ```
 
 ## API Documentation
@@ -177,13 +246,25 @@ output, err := serializer.SerializeToString(root, opts)
 The parser package provides low-level parsing capabilities:
 
 ```go
-import "yaml/pkg/parser"
+import "github.com/elioetibr/golang-yaml/pkg/parser"
 
 // Parse from string
 root, err := parser.ParseString(yamlString)
 
+// Parse from file
+root, err := parser.ParseFile("config.yaml")
+
 // Parse multiple documents
-stream, err := parser.ParseStream(multiDocYaml)
+multiDoc := `
+---
+first: document
+---
+second: document
+`
+stream, err := parser.ParseStream(multiDoc)
+for _, doc := range stream.Documents {
+    // Process each document
+}
 ```
 
 ### Encoder/Decoder Package
@@ -192,15 +273,42 @@ High-level Marshal/Unmarshal API similar to encoding/json:
 
 ```go
 import (
-    "yaml/pkg/encoder"
-    "yaml/pkg/decoder"
+    "github.com/elioetibr/golang-yaml/pkg/encoder"
+    "github.com/elioetibr/golang-yaml/pkg/decoder"
 )
 
 // Marshal Go value to YAML
-data, err := encoder.Marshal(value)
+type Person struct {
+    Name string `yaml:"name"`
+    Age  int    `yaml:"age"`
+    Tags []string `yaml:"tags,omitempty"`
+}
+
+person := Person{
+    Name: "John Doe",
+    Age:  30,
+    Tags: []string{"developer", "golang"},
+}
+
+data, err := encoder.Marshal(person)
+fmt.Println(string(data))
+// Output:
+// name: John Doe
+// age: 30
+// tags:
+//   - developer
+//   - golang
 
 // Unmarshal YAML to Go value
-err := decoder.Unmarshal(data, &value)
+var decoded Person
+err = decoder.Unmarshal(data, &decoded)
+
+// Stream encoding/decoding
+encoder := encoder.NewEncoder(writer)
+err = encoder.Encode(person)
+
+decoder := decoder.NewDecoder(reader)
+err = decoder.Decode(&decoded)
 ```
 
 ### Transform Package
@@ -208,15 +316,34 @@ err := decoder.Unmarshal(data, &value)
 Advanced transformation capabilities:
 
 ```go
-import "yaml/pkg/transform"
+import (
+    "github.com/elioetibr/golang-yaml/pkg/transform"
+    "github.com/elioetibr/golang-yaml/pkg/parser"
+)
 
-// Sorting
-sorter := transform.NewSorter(config)
-sorted := sorter.Sort(node)
+// Sorting with different strategies
+sortConfig := &transform.SortConfig{
+    Mode:   transform.SortModeAscending, // or SortModeDescending
+    SortBy: transform.SortByKey,         // or SortByValue
+}
 
-// Formatting
+root, _ := parser.ParseString(yamlData)
+sorter := transform.NewSorter(sortConfig)
+sorted := sorter.Sort(root)
+
+// Custom sorting with priority keys
+sortConfig.PriorityKeys = []string{"version", "name", "description"}
+sorted = sorter.Sort(root)
+
+// Formatting options
+formatConfig := &transform.FormatConfig{
+    Indent:           2,
+    CompactSequences: false,
+    QuoteKeys:        false,
+}
+
 formatter := transform.NewFormatter(formatConfig)
-formatted := formatter.Format(node)
+formatted := formatter.Format(root)
 ```
 
 ### Node Package
@@ -224,13 +351,39 @@ formatted := formatter.Format(node)
 AST node manipulation:
 
 ```go
-import "yaml/pkg/node"
+import "github.com/elioetibr/golang-yaml/pkg/node"
 
 // Build nodes programmatically
 builder := &node.DefaultBuilder{}
+
+// Create scalar nodes
 scalar := builder.BuildScalar("value", node.StylePlain)
+quoted := builder.BuildScalar("quoted value", node.StyleDoubleQuoted)
+
+// Create sequence (array)
+items := []node.Node{
+    builder.BuildScalar("item1", node.StylePlain),
+    builder.BuildScalar("item2", node.StylePlain),
+}
 seq := builder.BuildSequence(items, node.StyleBlock)
+
+// Create mapping (object)
+pairs := []*node.Pair{
+    {
+        Key:   builder.BuildScalar("name", node.StylePlain),
+        Value: builder.BuildScalar("John", node.StylePlain),
+    },
+    {
+        Key:   builder.BuildScalar("age", node.StylePlain),
+        Value: builder.BuildScalar("30", node.StylePlain),
+    },
+}
 mapping := builder.BuildMapping(pairs, node.StyleBlock)
+
+// Create document with nodes
+doc := &node.DocumentNode{
+    Content: mapping,
+}
 ```
 
 ## Performance
@@ -289,11 +442,204 @@ For detailed compliance information, see [docs/YAML_1.2.2_COMPLIANCE.md](docs/YA
 - **Spec Compliance**: YAML 1.2.2 compliance details in [YAML_1.2.2_COMPLIANCE.md](docs/YAML_1.2.2_COMPLIANCE.md)
 - **Future Plans**: See what's coming next in [ROADMAP.md](docs/ROADMAP.md)
 
+## Advanced Examples
+
+### YAML Merge Functionality
+
+The merge package provides powerful YAML merging capabilities with multiple strategies:
+
+```go
+import "github.com/elioetibr/golang-yaml/pkg/merge"
+
+// Basic file merging
+err := merge.MergeFilesToFile(
+    "base.yaml",     // Base configuration
+    "override.yaml", // Override values
+    "output.yaml",   // Output file
+)
+
+// Merge with custom options
+options := merge.DefaultOptions().
+    WithStrategy(merge.StrategyDeep).           // Deep merge strategy
+    WithArrayStrategy(merge.ArrayStrategyMerge). // Merge arrays
+    WithComments(true).                         // Preserve comments
+    WithValidation(true)                        // Validate output
+
+result, err := merge.MergeFilesWithOptions("base.yaml", "override.yaml", options)
+
+// Merge multiple files
+files := []string{"base.yaml", "env.yaml", "local.yaml"}
+result, err := merge.MergeMultipleFiles(files, options)
+
+// In-memory merging
+base := `
+server:
+  port: 8080
+  host: localhost
+`
+override := `
+server:
+  port: 9090
+  ssl: true
+`
+merged, err := merge.MergeStrings(base, override)
+// Result:
+// server:
+//   port: 9090
+//   host: localhost
+//   ssl: true
+```
+
+### Error Handling and Validation
+
+```go
+import (
+    "github.com/elioetibr/golang-yaml/pkg/decoder"
+    "github.com/elioetibr/golang-yaml/pkg/errors"
+)
+
+// Safe decoding with error handling
+var config map[string]interface{}
+err := decoder.Unmarshal(yamlData, &config)
+if err != nil {
+    switch e := err.(type) {
+    case *errors.YAMLError:
+        fmt.Printf("YAML error at line %d, column %d: %s\n",
+            e.Line, e.Column, e.Message)
+    default:
+        log.Fatal(err)
+    }
+}
+
+// Strict unmarshaling (fails on unknown fields)
+err = decoder.UnmarshalStrict(yamlData, &config)
+```
+
+### Working with Tags and Custom Types
+
+```go
+import (
+    "github.com/elioetibr/golang-yaml/pkg/parser"
+    "github.com/elioetibr/golang-yaml/pkg/node"
+)
+
+yamlWithTags := `
+# Custom tags example
+timestamp: !!timestamp 2024-01-15T10:30:00Z
+binary: !!binary SGVsbG8gV29ybGQ=
+set: !!set
+  ? item1
+  ? item2
+`
+
+root, _ := parser.ParseString(yamlWithTags)
+
+// Access tag information
+visitor := func(n node.Node) bool {
+    if scalar, ok := n.(*node.ScalarNode); ok && scalar.Tag != "" {
+        fmt.Printf("Found tag: %s with value: %s\n", scalar.Tag, scalar.Value)
+    }
+    return true
+}
+node.Walk(root, visitor)
+```
+
+### Multi-Document Streams
+
+```go
+import (
+    "github.com/elioetibr/golang-yaml/pkg/parser"
+    "github.com/elioetibr/golang-yaml/pkg/serializer"
+)
+
+multiDoc := `
+---
+document: first
+type: config
+---
+document: second
+type: data
+---
+document: third
+type: metadata
+`
+
+// Parse multi-document stream
+stream, err := parser.ParseStream(multiDoc)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Process each document
+for i, doc := range stream.Documents {
+    fmt.Printf("Document %d:\n", i+1)
+
+    // Serialize individual document
+    output, _ := serializer.SerializeToString(doc, nil)
+    fmt.Println(output)
+}
+
+// Create multi-document stream
+docs := []*node.DocumentNode{
+    {Content: /* ... */},
+    {Content: /* ... */},
+}
+stream = &node.StreamNode{Documents: docs}
+output, _ := serializer.SerializeToString(stream, nil)
+```
+
+### Round-Trip Preservation
+
+```go
+import (
+    "github.com/elioetibr/golang-yaml/pkg/parser"
+    "github.com/elioetibr/golang-yaml/pkg/serializer"
+)
+
+// Parse with full preservation
+originalYAML := `
+# Important configuration file
+# Last updated: 2024-01-15
+
+server:
+  # Server configuration
+  host: localhost  # Default host
+  port: 8080      # Default port
+
+  # Security settings
+  ssl:
+    enabled: true
+    cert: /path/to/cert
+
+database:
+  # Connection string
+  url: postgres://localhost/mydb
+`
+
+root, _ := parser.ParseString(originalYAML)
+
+// Modify values while preserving structure
+// ... modifications ...
+
+// Serialize back with all formatting preserved
+opts := &serializer.Options{
+    PreserveComments:    true,
+    PreserveBlankLines:  true,
+    Indent:             2,
+    LineWidth:          80,
+}
+
+output, _ := serializer.SerializeToString(root, opts)
+// All comments, blank lines, and formatting are preserved
+```
+
 ## Examples
 
 See the [examples](examples/) directory for more usage examples:
 - [full_demo.go](examples/full_demo.go) - Comprehensive feature demonstration
 - [advanced_demo.go](examples/advanced_demo.go) - Advanced features showcase
+- [merge/](examples/merge/) - YAML merging examples
+- [values-with-comments/](examples/values-with-comments/) - Comment preservation examples
 
 ## Testing
 
