@@ -497,7 +497,7 @@ type mockUnknownNode struct {
 	node.BaseNode
 }
 
-func (m *mockUnknownNode) Type() node.NodeType { return node.NodeType(999) }
+func (m *mockUnknownNode) Type() node.NodeType         { return node.NodeType(999) }
 func (m *mockUnknownNode) Accept(v node.Visitor) error { return nil }
-func (m *mockUnknownNode) Clone() node.Node { return m }
-func (m *mockUnknownNode) String() string { return "mockUnknownNode" }
+func (m *mockUnknownNode) Clone() node.Node            { return m }
+func (m *mockUnknownNode) String() string              { return "mockUnknownNode" }

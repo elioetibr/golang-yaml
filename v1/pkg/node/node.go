@@ -46,12 +46,12 @@ const (
 type SectionType int
 
 const (
-	SectionTypeGeneric SectionType = iota
-	SectionTypeHeader      // Section with header comments (e.g., "# Company Name")
-	SectionTypeConfiguration // Configuration blocks
-	SectionTypeData         // Data blocks
-	SectionTypeFooter       // Footer sections
-	SectionTypeAny          // Matches any section type (for rules)
+	SectionTypeGeneric       SectionType = iota
+	SectionTypeHeader                    // Section with header comments (e.g., "# Company Name")
+	SectionTypeConfiguration             // Configuration blocks
+	SectionTypeData                      // Data blocks
+	SectionTypeFooter                    // Footer sections
+	SectionTypeAny                       // Matches any section type (for rules)
 )
 
 func (t SectionType) String() string {
@@ -87,12 +87,27 @@ type Node interface {
 	Accept(visitor Visitor) error
 }
 
+// NodeRef represents a node reference with location and comment tracking (inspired by user's alternative parser)
+type NodeRef struct {
+	Path     []string // Path to this node (e.g., ["config", "database", "host"])
+	Line     int      // Line number where this node starts
+	Column   int      // Column number where this node starts
+	Depth    int      // Indentation depth
+	Comments []string // Comments associated with this node
+	EmptyLines []int  // Line numbers of empty lines before this node
+}
+
 // CommentGroup represents a collection of comments with formatting rules
 type CommentGroup struct {
 	Comments         []string
-	BlankLinesBefore int    // Number of blank lines before this comment group
-	BlankLinesAfter  int    // Number of blank lines after this comment group
+	BlankLinesBefore int           // Number of blank lines before this comment group
+	BlankLinesAfter  int           // Number of blank lines after this comment group
 	Format           CommentFormat // How to format these comments
+	// BlankLinesWithin tracks blank lines before each comment in the group
+	// Index corresponds to Comments array - BlankLinesWithin[i] is blank lines before Comments[i]
+	BlankLinesWithin []int
+	// EmptyLineMarkers tracks exact empty line positions using ##EMPTY_LINE## strategy
+	EmptyLineMarkers []int
 }
 
 // CommentFormat defines how comments should be formatted
@@ -104,11 +119,11 @@ type CommentFormat struct {
 
 // Section represents a logical section of YAML with its own comment context
 type Section struct {
-	ID          string      // Unique identifier for the section
-	Type        SectionType // Type of section
-	Title       string      // Optional title for the section
-	Description string      // Optional description
-	Nodes       []Node      // Nodes belonging to this section
+	ID          string        // Unique identifier for the section
+	Type        SectionType   // Type of section
+	Title       string        // Optional title for the section
+	Description string        // Optional description
+	Nodes       []Node        // Nodes belonging to this section
 	Comments    *CommentGroup // Section-level comments
 
 	// Section formatting options
@@ -117,9 +132,9 @@ type Section struct {
 
 // SectionFormat defines formatting rules for sections
 type SectionFormat struct {
-	BlankLinesBefore int  // Blank lines before section
-	BlankLinesAfter  int  // Blank lines after section
-	IndentChildren   bool // Whether to indent child nodes
+	BlankLinesBefore  int  // Blank lines before section
+	BlankLinesAfter   int  // Blank lines after section
+	IndentChildren    bool // Whether to indent child nodes
 	PreserveStructure bool // Whether to preserve original structure
 }
 
@@ -142,16 +157,19 @@ type BaseNode struct {
 	StyleHint        Style
 	BlankLinesBefore int // Number of blank lines before this node
 	BlankLinesAfter  int // Number of blank lines after this node
+
+	// NodeRef tracking for enhanced comment association (inspired by user's alternative parser)
+	Ref *NodeRef
 }
 
-func (n *BaseNode) Tag() string              { return n.TagValue }
-func (n *BaseNode) SetTag(tag string)        { n.TagValue = tag }
-func (n *BaseNode) Anchor() string           { return n.AnchorValue }
-func (n *BaseNode) SetAnchor(a string)       { n.AnchorValue = a }
-func (n *BaseNode) Line() int                { return n.LineNumber }
-func (n *BaseNode) Column() int              { return n.ColumnNumber }
-func (n *BaseNode) Section() *Section        { return n.ParentSection }
-func (n *BaseNode) SetSection(s *Section)    { n.ParentSection = s }
+func (n *BaseNode) Tag() string           { return n.TagValue }
+func (n *BaseNode) SetTag(tag string)     { n.TagValue = tag }
+func (n *BaseNode) Anchor() string        { return n.AnchorValue }
+func (n *BaseNode) SetAnchor(a string)    { n.AnchorValue = a }
+func (n *BaseNode) Line() int             { return n.LineNumber }
+func (n *BaseNode) Column() int           { return n.ColumnNumber }
+func (n *BaseNode) Section() *Section     { return n.ParentSection }
+func (n *BaseNode) SetSection(s *Section) { n.ParentSection = s }
 
 // ScalarNode represents a scalar value
 type ScalarNode struct {
@@ -163,6 +181,7 @@ type ScalarNode struct {
 
 func (n *ScalarNode) Type() NodeType         { return NodeTypeScalar }
 func (n *ScalarNode) Accept(v Visitor) error { return v.VisitScalar(n) }
+func (n *ScalarNode) GetBase() *BaseNode      { return &n.BaseNode }
 
 // SequenceNode represents a sequence (list/array)
 type SequenceNode struct {
@@ -173,16 +192,22 @@ type SequenceNode struct {
 
 func (n *SequenceNode) Type() NodeType         { return NodeTypeSequence }
 func (n *SequenceNode) Accept(v Visitor) error { return v.VisitSequence(n) }
+func (n *SequenceNode) GetBase() *BaseNode      { return &n.BaseNode }
 
 // MappingNode represents a mapping (dict/map)
 type MappingNode struct {
 	BaseNode
 	Pairs []*MappingPair
 	Style Style
+
+	// HasDocumentHeadComments indicates if this is the root mapping and has document-level comments
+	// that should be preserved. This helps the first key be aware of document-level comments.
+	HasDocumentHeadComments bool
 }
 
 func (n *MappingNode) Type() NodeType         { return NodeTypeMapping }
 func (n *MappingNode) Accept(v Visitor) error { return v.VisitMapping(n) }
+func (n *MappingNode) GetBase() *BaseNode      { return &n.BaseNode }
 
 // SectionNode represents a logical section containing related nodes
 type SectionNode struct {
@@ -199,6 +224,10 @@ type DocumentNode struct {
 	BaseNode
 	Sections []*Section
 	Nodes    []Node // Direct child nodes not in sections
+
+	// HeadCommentDocumentSections tracks all comments at the beginning of the document
+	// before any keys or values. The first scalar key should be aware of these.
+	HeadCommentDocumentSections *CommentGroup
 }
 
 func (n *DocumentNode) Type() NodeType         { return NodeTypeDocument }

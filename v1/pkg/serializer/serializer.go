@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	node2 "github.com/elioetibr/golang-yaml/v1/pkg/node"
+	"github.com/elioetibr/golang-yaml/v1/pkg/node"
 )
 
 // Options configures the serialization behavior
@@ -70,7 +70,10 @@ func NewSerializer(w io.Writer, opts *Options) *Serializer {
 }
 
 // Serialize serializes a node to the writer
-func (s *Serializer) Serialize(n node2.Node) error {
+func (s *Serializer) Serialize(n node.Node) error {
+	// Don't emit document head comments here anymore - they're handled by first key
+	// This prevents duplication
+
 	if s.options.ExplicitDocumentStart {
 		s.writeLine("---")
 	}
@@ -90,35 +93,35 @@ func (s *Serializer) Serialize(n node2.Node) error {
 }
 
 // serializeNode serializes any node based on its type
-func (s *Serializer) serializeNode(n node2.Node, indent int) error {
+func (s *Serializer) serializeNode(n node.Node, indent int) error {
 	return s.serializeNodeWithComments(n, indent, true)
 }
 
 // serializeNodeWithComments serializes a node with optional comment emission
-func (s *Serializer) serializeNodeWithComments(n node2.Node, indent int, emitComments bool) error {
+func (s *Serializer) serializeNodeWithComments(n node.Node, indent int, emitComments bool) error {
 	if n == nil {
 		return nil
 	}
 
 	// Handle comments before the node (if requested)
 	if s.options.PreserveComments && emitComments {
-		s.emitComments(n, node2.CommentPositionAbove, indent)
+		s.emitComments(n, node.CommentPositionAbove, indent)
 	}
 
 	switch v := n.(type) {
-	case *node2.ScalarNode:
+	case *node.ScalarNode:
 		err := s.serializeScalar(v, indent)
 		if err != nil {
 			return err
 		}
 
-	case *node2.SequenceNode:
+	case *node.SequenceNode:
 		err := s.serializeSequence(v, indent)
 		if err != nil {
 			return err
 		}
 
-	case *node2.MappingNode:
+	case *node.MappingNode:
 		err := s.serializeMapping(v, indent)
 		if err != nil {
 			return err
@@ -130,33 +133,33 @@ func (s *Serializer) serializeNodeWithComments(n node2.Node, indent int, emitCom
 
 	// Handle inline comments (skip for mappings/sequences as they're handled specially)
 	if s.options.PreserveComments && emitComments {
-		if _, isMapping := n.(*node2.MappingNode); !isMapping {
-			if _, isSequence := n.(*node2.SequenceNode); !isSequence {
-				s.emitComments(n, node2.CommentPositionInline, indent)
+		if _, isMapping := n.(*node.MappingNode); !isMapping {
+			if _, isSequence := n.(*node.SequenceNode); !isSequence {
+				s.emitComments(n, node.CommentPositionInline, indent)
 			}
 		}
 	}
 
 	// Handle comments after the node
 	if s.options.PreserveComments && !s.inFlow && emitComments {
-		s.emitComments(n, node2.CommentPositionBelow, indent)
+		s.emitComments(n, node.CommentPositionBelow, indent)
 	}
 
 	return nil
 }
 
 // serializeScalar serializes a scalar node
-func (s *Serializer) serializeScalar(n *node2.ScalarNode, indent int) error {
+func (s *Serializer) serializeScalar(n *node.ScalarNode, indent int) error {
 	value := n.Value
 
 	switch n.Style {
-	case node2.StyleDoubleQuoted:
+	case node.StyleDoubleQuoted:
 		value = s.doubleQuoteScalar(value)
-	case node2.StyleSingleQuoted:
+	case node.StyleSingleQuoted:
 		value = s.singleQuoteScalar(value)
-	case node2.StyleLiteral:
+	case node.StyleLiteral:
 		return s.serializeLiteralScalar(value, indent)
-	case node2.StyleFolded:
+	case node.StyleFolded:
 		return s.serializeFoldedScalar(value, indent)
 	default:
 		// Plain scalar - check if quoting needed
@@ -175,7 +178,7 @@ func (s *Serializer) serializeScalar(n *node2.ScalarNode, indent int) error {
 }
 
 // serializeSequence serializes a sequence node
-func (s *Serializer) serializeSequence(seq *node2.SequenceNode, indent int) error {
+func (s *Serializer) serializeSequence(seq *node.SequenceNode, indent int) error {
 	if len(seq.Items) == 0 {
 		// For empty sequences, check if we're in a mapping value position
 		// If we are and on the same line, just write []
@@ -192,7 +195,7 @@ func (s *Serializer) serializeSequence(seq *node2.SequenceNode, indent int) erro
 	}
 
 	// Determine style
-	useFlow := seq.Style == node2.StyleFlow ||
+	useFlow := seq.Style == node.StyleFlow ||
 		(s.options.PreferFlowStyle && !s.options.PreferBlockStyle)
 
 	if useFlow {
@@ -202,7 +205,7 @@ func (s *Serializer) serializeSequence(seq *node2.SequenceNode, indent int) erro
 }
 
 // serializeBlockSequence serializes a block-style sequence
-func (s *Serializer) serializeBlockSequence(seq *node2.SequenceNode, indent int) error {
+func (s *Serializer) serializeBlockSequence(seq *node.SequenceNode, indent int) error {
 	for i, item := range seq.Items {
 		if i > 0 || s.column > 1 {
 			s.writeLine("")
@@ -231,7 +234,7 @@ func (s *Serializer) serializeBlockSequence(seq *node2.SequenceNode, indent int)
 }
 
 // serializeFlowSequence serializes a flow-style sequence
-func (s *Serializer) serializeFlowSequence(seq *node2.SequenceNode, indent int) error {
+func (s *Serializer) serializeFlowSequence(seq *node.SequenceNode, indent int) error {
 	s.write("[")
 	s.inFlow = true
 
@@ -251,7 +254,7 @@ func (s *Serializer) serializeFlowSequence(seq *node2.SequenceNode, indent int) 
 }
 
 // serializeMapping serializes a mapping node
-func (s *Serializer) serializeMapping(m *node2.MappingNode, indent int) error {
+func (s *Serializer) serializeMapping(m *node.MappingNode, indent int) error {
 	if len(m.Pairs) == 0 {
 		// For empty mappings, check if we're in a mapping value position
 		// If we are and on the same line, just write {}
@@ -268,7 +271,7 @@ func (s *Serializer) serializeMapping(m *node2.MappingNode, indent int) error {
 	}
 
 	// Determine style
-	useFlow := m.Style == node2.StyleFlow ||
+	useFlow := m.Style == node.StyleFlow ||
 		(s.options.PreferFlowStyle && !s.options.PreferBlockStyle)
 
 	if useFlow {
@@ -278,7 +281,7 @@ func (s *Serializer) serializeMapping(m *node2.MappingNode, indent int) error {
 }
 
 // serializeBlockMapping serializes a block-style mapping
-func (s *Serializer) serializeBlockMapping(m *node2.MappingNode, indent int) error {
+func (s *Serializer) serializeBlockMapping(m *node.MappingNode, indent int) error {
 	for i, pair := range m.Pairs {
 		if i > 0 || s.column > 1 {
 			s.writeLine("")
@@ -286,17 +289,35 @@ func (s *Serializer) serializeBlockMapping(m *node2.MappingNode, indent int) err
 
 		// Handle blank lines before entry
 		if s.options.PreserveBlankLines && pair.Key != nil {
-			if baseNode, ok := pair.Key.(interface{ GetBase() *node2.BaseNode }); ok {
+			if baseNode, ok := pair.Key.(interface{ GetBase() *node.BaseNode }); ok {
 				for j := 0; j < baseNode.GetBase().BlankLinesBefore; j++ {
 					s.writeLine("")
 				}
 			}
 		}
 
+		// Add header comment metadata to the first matching key (as requested)
+		// Only do this if document head comments haven't been emitted yet
+		if i == 0 && m.HasDocumentHeadComments && m.HeadComment != nil && pair.Key != nil {
+			if keyBaseNode, ok := pair.Key.(interface{ GetBase() *node.BaseNode }); ok {
+				keyBase := keyBaseNode.GetBase()
+				// Transfer document head comments to first key if it doesn't already have head comments
+				if keyBase.HeadComment == nil {
+					keyBase.HeadComment = m.HeadComment
+				} else {
+					// Merge the document head comments with existing key comments
+					mergedComments := append(m.HeadComment.Comments, keyBase.HeadComment.Comments...)
+					keyBase.HeadComment.Comments = mergedComments
+				}
+				// Clear the document head comments to prevent double emission
+				m.HeadComment = nil
+				m.HasDocumentHeadComments = false
+			}
+		}
+
 		// Emit key comments if needed (before writing key)
 		if s.options.PreserveComments && pair.Key != nil {
-			// fmt.Printf("[DEBUG] Emitting comments for key at indent %d, column %d\n", indent, s.column)
-			s.emitComments(pair.Key, node2.CommentPositionAbove, indent)
+			s.emitComments(pair.Key, node.CommentPositionAbove, indent)
 		}
 
 		// Write key (with indent if not already at position)
@@ -314,10 +335,10 @@ func (s *Serializer) serializeBlockMapping(m *node2.MappingNode, indent int) err
 		// Empty sequences and mappings should be inline
 		isComplex := s.isComplexNode(pair.Value)
 		isEmpty := false
-		if seq, ok := pair.Value.(*node2.SequenceNode); ok && len(seq.Items) == 0 {
+		if seq, ok := pair.Value.(*node.SequenceNode); ok && len(seq.Items) == 0 {
 			isEmpty = true
 			isComplex = false
-		} else if mapping, ok := pair.Value.(*node2.MappingNode); ok && len(mapping.Pairs) == 0 {
+		} else if mapping, ok := pair.Value.(*node.MappingNode); ok && len(mapping.Pairs) == 0 {
 			isEmpty = true
 			isComplex = false
 		}
@@ -328,14 +349,14 @@ func (s *Serializer) serializeBlockMapping(m *node2.MappingNode, indent int) err
 			// Check if the value (mapping/sequence) has an inline comment
 			hasInlineComment := false
 			if s.options.PreserveComments {
-				if mapping, ok := pair.Value.(*node2.MappingNode); ok && mapping.LineComment != nil {
+				if mapping, ok := pair.Value.(*node.MappingNode); ok && mapping.LineComment != nil {
 					// Write inline comment for mapping key
 					s.write("  ")
 					for _, comment := range mapping.LineComment.Comments {
 						s.write(comment)
 					}
 					hasInlineComment = true
-				} else if seq, ok := pair.Value.(*node2.SequenceNode); ok && seq.LineComment != nil {
+				} else if seq, ok := pair.Value.(*node.SequenceNode); ok && seq.LineComment != nil {
 					// Write inline comment for sequence key
 					s.write("  ")
 					for _, comment := range seq.LineComment.Comments {
@@ -345,7 +366,21 @@ func (s *Serializer) serializeBlockMapping(m *node2.MappingNode, indent int) err
 				}
 			}
 
-			s.writeLine("")
+			// Only add newline if there's no immediate head comment on the value
+			// The serializeNodeWithComments will handle proper spacing based on comments
+			valueHasHeadComment := false
+			if s.options.PreserveComments {
+				if baseNode, ok := pair.Value.(interface{ GetBase() *node.BaseNode }); ok {
+					base := baseNode.GetBase()
+					if base.HeadComment != nil && len(base.HeadComment.Comments) > 0 {
+						valueHasHeadComment = true
+					}
+				}
+			}
+
+			if !valueHasHeadComment {
+				s.writeLine("")
+			}
 			// Value comments are handled by serializeNode
 			err = s.serializeNodeWithComments(pair.Value, indent+s.options.Indent, !hasInlineComment)
 		} else {
@@ -353,10 +388,10 @@ func (s *Serializer) serializeBlockMapping(m *node2.MappingNode, indent int) err
 			// For empty collections, don't let them add extra spacing
 			if isEmpty {
 				// Write empty collection inline
-				if _, ok := pair.Value.(*node2.SequenceNode); ok {
+				if _, ok := pair.Value.(*node.SequenceNode); ok {
 					s.write("[]")
 					err = nil
-				} else if _, ok := pair.Value.(*node2.MappingNode); ok {
+				} else if _, ok := pair.Value.(*node.MappingNode); ok {
 					s.write("{}")
 					err = nil
 				} else {
@@ -376,7 +411,7 @@ func (s *Serializer) serializeBlockMapping(m *node2.MappingNode, indent int) err
 }
 
 // serializeFlowMapping serializes a flow-style mapping
-func (s *Serializer) serializeFlowMapping(m *node2.MappingNode, indent int) error {
+func (s *Serializer) serializeFlowMapping(m *node.MappingNode, indent int) error {
 	// Check if we're at the start of a line and need indentation
 	if s.column == 0 {
 		s.writeIndent(indent)
@@ -521,15 +556,15 @@ func (s *Serializer) singleQuoteScalar(value string) string {
 	return fmt.Sprintf("'%s'", value)
 }
 
-func (s *Serializer) isComplexNode(n node2.Node) bool {
+func (s *Serializer) isComplexNode(n node.Node) bool {
 	if n == nil {
 		return false
 	}
 
 	switch v := n.(type) {
-	case *node2.SequenceNode, *node2.MappingNode:
+	case *node.SequenceNode, *node.MappingNode:
 		return true
-	case *node2.ScalarNode:
+	case *node.ScalarNode:
 		// Scalars with comments above them need to be on a new line
 		if s.options.PreserveComments && v.HeadComment != nil && len(v.HeadComment.Comments) > 0 {
 			return true
@@ -540,34 +575,45 @@ func (s *Serializer) isComplexNode(n node2.Node) bool {
 	}
 }
 
-func (s *Serializer) emitComments(n node2.Node, position node2.CommentPosition, indent int) {
+func (s *Serializer) emitComments(n node.Node, position node.CommentPosition, indent int) {
 	if n == nil {
 		return
 	}
 
+	// Skip document head comments for MappingNode - they're handled separately in Serialize()
+	if position == node.CommentPositionAbove {
+		if mappingNode, ok := n.(*node.MappingNode); ok && mappingNode.HasDocumentHeadComments {
+			// Document head comments are emitted at the document level, not here
+			return
+		}
+	}
+
 	// Get base node to access comments
-	baseNode, ok := n.(interface{ GetBase() *node2.BaseNode })
+	baseNode, ok := n.(interface{ GetBase() *node.BaseNode })
 	if !ok {
 		return
 	}
 	base := baseNode.GetBase()
+	if base == nil {
+		return
+	}
 
-	var commentGroup *node2.CommentGroup
+	var commentGroup *node.CommentGroup
+	//goland:noinspection GoSwitchMissingCasesForIotaConsts
 	switch position {
-	case node2.CommentPositionAbove:
+	case node.CommentPositionAbove:
 		commentGroup = base.HeadComment
-	case node2.CommentPositionInline:
+	case node.CommentPositionInline:
 		commentGroup = base.LineComment
-	case node2.CommentPositionBelow:
+	case node.CommentPositionBelow:
 		commentGroup = base.FootComment
 	}
 
 	if commentGroup == nil || len(commentGroup.Comments) == 0 {
 		return
 	}
-
-	for _, comment := range commentGroup.Comments {
-		if position == node2.CommentPositionInline {
+	for i, comment := range commentGroup.Comments {
+		if position == node.CommentPositionInline {
 			// Inline comment - add spacing
 			if s.options.CommentColumn > 0 && s.column < s.options.CommentColumn {
 				for s.column < s.options.CommentColumn {
@@ -579,8 +625,24 @@ func (s *Serializer) emitComments(n node2.Node, position node2.CommentPosition, 
 			s.write(comment)
 		} else {
 			// Head or foot comment - on its own line
-			if position == node2.CommentPositionAbove && s.options.BlankLinesBeforeComment > 0 {
-				for i := 0; i < s.options.BlankLinesBeforeComment; i++ {
+
+			// Handle blank lines within comment group
+			if i > 0 && len(commentGroup.BlankLinesWithin) > i {
+				blankLines := commentGroup.BlankLinesWithin[i]
+				for j := 0; j < blankLines; j++ {
+					s.writeLine("")
+				}
+			}
+
+			// Handle ##EMPTY_LINE## markers for precise blank line preservation
+			if len(commentGroup.EmptyLineMarkers) > i && commentGroup.EmptyLineMarkers[i] > 0 {
+				for j := 0; j < commentGroup.EmptyLineMarkers[i]; j++ {
+					s.writeLine("")
+				}
+			}
+
+			if position == node.CommentPositionAbove && s.options.BlankLinesBeforeComment > 0 && i == 0 {
+				for j := 0; j < s.options.BlankLinesBeforeComment; j++ {
 					s.writeLine("")
 				}
 			}
@@ -592,7 +654,7 @@ func (s *Serializer) emitComments(n node2.Node, position node2.CommentPosition, 
 }
 
 // SerializeToString is a convenience method to serialize to a string
-func SerializeToString(n node2.Node, opts *Options) (string, error) {
+func SerializeToString(n node.Node, opts *Options) (string, error) {
 	var buf strings.Builder
 	serializer := NewSerializer(&buf, opts)
 	err := serializer.Serialize(n)

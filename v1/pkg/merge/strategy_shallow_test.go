@@ -229,9 +229,9 @@ func TestShallowMergeStrategy_Merge(t *testing.T) {
 		key := builder.BuildScalar("key", node.StylePlain)
 		baseValue := builder.BuildScalar("base", node.StylePlain)
 		basePair := &node.MappingPair{
-			Key:   key,
-			Value: baseValue,
-			KeyComment: &node.CommentGroup{Comments: []string{"key comment"}},
+			Key:          key,
+			Value:        baseValue,
+			KeyComment:   &node.CommentGroup{Comments: []string{"key comment"}},
 			ValueComment: &node.CommentGroup{Comments: []string{"base value comment"}},
 		}
 		baseMapping.Pairs = []*node.MappingPair{basePair}
@@ -241,8 +241,8 @@ func TestShallowMergeStrategy_Merge(t *testing.T) {
 		overrideKey := builder.BuildScalar("key", node.StylePlain)
 		overrideValue := builder.BuildScalar("override", node.StylePlain)
 		overridePair := &node.MappingPair{
-			Key:   overrideKey,
-			Value: overrideValue,
+			Key:          overrideKey,
+			Value:        overrideValue,
 			ValueComment: &node.CommentGroup{Comments: []string{"override value comment"}},
 		}
 		overrideMapping.Pairs = []*node.MappingPair{overridePair}

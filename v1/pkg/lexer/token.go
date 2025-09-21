@@ -40,6 +40,7 @@ const (
 	// Whitespace
 	TokenNewLine
 	TokenIndent
+	TokenEmptyLine // ##EMPTY_LINE## marker for precise blank line tracking
 )
 
 // Token represents a lexical token in YAML
@@ -100,6 +101,7 @@ func (t TokenType) String() string {
 		TokenComment:            "COMMENT",
 		TokenNewLine:            "NEWLINE",
 		TokenIndent:             "INDENT",
+		TokenEmptyLine:          "EMPTY_LINE",
 	}
 	if name, ok := names[t]; ok {
 		return name

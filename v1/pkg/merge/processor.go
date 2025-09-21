@@ -34,6 +34,16 @@ func (p *NodeProcessor) CleanScalarHeadComment(n node.Node) node.Node {
 
 // PreserveMetadata copies metadata from base to result node
 func (p *NodeProcessor) PreserveMetadata(result, base node.Node, opts *Options) {
+	// Handle document-level comments for root mappings
+	if baseMapping, ok := base.(*node.MappingNode); ok {
+		if resultMapping, ok := result.(*node.MappingNode); ok {
+			// Preserve document head comment awareness
+			if baseMapping.HasDocumentHeadComments {
+				resultMapping.HasDocumentHeadComments = true
+			}
+		}
+	}
+
 	// Get base nodes if available
 	var resultBase, baseBase *node.BaseNode
 
@@ -69,8 +79,26 @@ func (p *NodeProcessor) PreserveMetadata(result, base node.Node, opts *Options) 
 		}
 
 		if opts.PreserveBlankLines {
-			resultBase.BlankLinesBefore = baseBase.BlankLinesBefore
-			resultBase.BlankLinesAfter = baseBase.BlankLinesAfter
+			// Handle section blank lines based on configuration
+			if opts.KeepDefaultLineBetweenSections {
+				// Keep original blank line count
+				resultBase.BlankLinesBefore = baseBase.BlankLinesBefore
+				resultBase.BlankLinesAfter = baseBase.BlankLinesAfter
+			} else {
+				// Normalize blank lines based on configuration
+				// If original has more than 1 blank line, it's likely a section separator
+				if baseBase.BlankLinesBefore > 1 {
+					resultBase.BlankLinesBefore = opts.DefaultLineBetweenSections
+				} else {
+					resultBase.BlankLinesBefore = baseBase.BlankLinesBefore
+				}
+
+				if baseBase.BlankLinesAfter > 1 {
+					resultBase.BlankLinesAfter = opts.DefaultLineBetweenSections
+				} else {
+					resultBase.BlankLinesAfter = baseBase.BlankLinesAfter
+				}
+			}
 		}
 	}
 }
@@ -89,8 +117,25 @@ func (p *NodeProcessor) CreateMappingPair(key, value node.Node, basePair *node.M
 		}
 
 		if opts.PreserveBlankLines {
-			pair.BlankLinesBefore = basePair.BlankLinesBefore
-			pair.BlankLinesAfter = basePair.BlankLinesAfter
+			// Handle section blank lines based on configuration
+			if opts.KeepDefaultLineBetweenSections {
+				// Keep original blank line count
+				pair.BlankLinesBefore = basePair.BlankLinesBefore
+				pair.BlankLinesAfter = basePair.BlankLinesAfter
+			} else {
+				// Normalize blank lines for sections
+				if basePair.BlankLinesBefore > 1 {
+					pair.BlankLinesBefore = opts.DefaultLineBetweenSections
+				} else {
+					pair.BlankLinesBefore = basePair.BlankLinesBefore
+				}
+
+				if basePair.BlankLinesAfter > 1 {
+					pair.BlankLinesAfter = opts.DefaultLineBetweenSections
+				} else {
+					pair.BlankLinesAfter = basePair.BlankLinesAfter
+				}
+			}
 		}
 	}
 
@@ -134,6 +179,81 @@ func (p *NodeProcessor) PreserveKeyNode(baseKey, overrideKey node.Node, opts *Op
 	}
 
 	return baseKey
+}
+
+// IsSectionBoundary checks if a node represents a section boundary based on blank lines
+func (p *NodeProcessor) IsSectionBoundary(n node.Node, minBlankLines int) bool {
+	var blankLinesBefore int
+
+	switch node := n.(type) {
+	case *node.MappingNode:
+		blankLinesBefore = node.BlankLinesBefore
+	case *node.SequenceNode:
+		blankLinesBefore = node.BlankLinesBefore
+	case *node.ScalarNode:
+		blankLinesBefore = node.BlankLinesBefore
+	default:
+		return false
+	}
+
+	// A section boundary is detected when we have at least minBlankLines
+	// Default is to consider 2 or more blank lines as a section boundary
+	if minBlankLines == 0 {
+		minBlankLines = 2
+	}
+
+	return blankLinesBefore >= minBlankLines
+}
+
+// PreserveDocumentHeadComments handles document-level comments that appear before any keys
+func (p *NodeProcessor) PreserveDocumentHeadComments(result node.Node, doc *node.DocumentNode, opts *Options) {
+	if !opts.PreserveComments || doc == nil || doc.HeadCommentDocumentSections == nil {
+		return
+	}
+
+	// If result is a mapping, mark it as having document head comments
+	if mapping, ok := result.(*node.MappingNode); ok {
+		mapping.HasDocumentHeadComments = true
+
+		// If the mapping doesn't have head comments, use the document's head comments
+		if mapping.HeadComment == nil {
+			mapping.HeadComment = doc.HeadCommentDocumentSections
+		}
+	}
+}
+
+// NormalizeSectionBoundaries applies consistent blank line formatting to section boundaries
+func (p *NodeProcessor) NormalizeSectionBoundaries(n node.Node, opts *Options) {
+	if !opts.PreserveBlankLines || opts.KeepDefaultLineBetweenSections {
+		return
+	}
+
+	// Apply normalization based on node type
+	switch node := n.(type) {
+	case *node.MappingNode:
+		if p.IsSectionBoundary(node, 2) {
+			node.BlankLinesBefore = opts.DefaultLineBetweenSections
+		}
+		// Recursively process pairs
+		for _, pair := range node.Pairs {
+			if pair.BlankLinesBefore >= 2 {
+				pair.BlankLinesBefore = opts.DefaultLineBetweenSections
+			}
+			p.NormalizeSectionBoundaries(pair.Value, opts)
+		}
+	case *node.SequenceNode:
+		if p.IsSectionBoundary(node, 2) {
+			node.BlankLinesBefore = opts.DefaultLineBetweenSections
+		}
+		// Recursively process items
+		for _, item := range node.Items {
+			p.NormalizeSectionBoundaries(item, opts)
+		}
+	case *node.ScalarNode:
+		if p.IsSectionBoundary(node, 2) {
+			node.BlankLinesBefore = opts.DefaultLineBetweenSections
+		}
+	}
 }
 
 // TransferInterFieldComments transfers comments stored in value HeadComments to next key HeadComments

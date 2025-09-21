@@ -283,10 +283,10 @@ func TestOverrideStrategy_Merge(t *testing.T) {
 		// Create context with various options
 		opts := &Options{
 			Strategy:           StrategyDeep, // This should be ignored
-			PreserveComments:   true,        // This should be ignored
-			PreserveBlankLines: true,        // This should be ignored
-			ArrayMergeStrategy: ArrayAppend, // This should be ignored
-			OverrideEmpty:      false,       // This should be ignored
+			PreserveComments:   true,         // This should be ignored
+			PreserveBlankLines: true,         // This should be ignored
+			ArrayMergeStrategy: ArrayAppend,  // This should be ignored
+			OverrideEmpty:      false,        // This should be ignored
 		}
 		ctx := &Context{Options: opts, Depth: 5, Path: []string{"deep", "path"}}
 

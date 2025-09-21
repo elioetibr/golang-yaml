@@ -44,13 +44,18 @@ func NewLexer(r io.Reader) *Lexer {
 
 // NewLexerFromString creates a new lexer from a string
 func NewLexerFromString(input string) *Lexer {
-	return &Lexer{
+	l := &Lexer{
 		input:       input,
 		line:        1,
 		column:      1,
 		indentStack: []int{0},
 		tokens:      make([]Token, 0),
 	}
+	// Initialize current to the first character
+	if len(input) > 0 {
+		l.current = rune(input[0])
+	}
+	return l
 }
 
 // NextToken returns the next token from the input
@@ -285,6 +290,22 @@ func (l *Lexer) skipWhitespace() {
 			errors.Position{Line: tabLine, Column: tabColumn, Offset: tabOffset},
 			errors.ErrorTypeLexer,
 		))
+	}
+}
+
+// scanEmptyLine creates explicit empty line tokens following user's ##EMPTY_LINE## strategy
+func (l *Lexer) scanEmptyLine() *Token {
+	startLine := l.line
+
+	// Skip the newline character
+	l.advance(1)
+
+	return &Token{
+		Type:   TokenEmptyLine,
+		Value:  "##EMPTY_LINE##",
+		Line:   startLine,
+		Column: 1,
+		Offset: l.pos - 1,
 	}
 }
 
@@ -556,4 +577,14 @@ func (l *Lexer) Initialize() error {
 		// This would be implemented based on the reader
 	}
 	return nil
+}
+
+// GetInput returns the input string
+func (l *Lexer) GetInput() string {
+	return l.input
+}
+
+// GetPos returns the current position
+func (l *Lexer) GetPos() int {
+	return l.pos
 }

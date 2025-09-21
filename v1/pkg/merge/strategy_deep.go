@@ -56,18 +56,26 @@ func (s *DeepMergeStrategy) mergeMappings(base *node.MappingNode, override node.
 	// Transfer inter-field comments from base before processing
 	// This moves comments from value HeadComments to next key HeadComments where they belong
 	baseCopy := &node.MappingNode{
-		BaseNode: base.BaseNode,
-		Pairs:    make([]*node.MappingPair, len(base.Pairs)),
-		Style:    base.Style,
+		BaseNode:                base.BaseNode,
+		Pairs:                   make([]*node.MappingPair, len(base.Pairs)),
+		Style:                   base.Style,
+		HasDocumentHeadComments: base.HasDocumentHeadComments, // Preserve document head comments flag
 	}
 	copy(baseCopy.Pairs, base.Pairs)
 	s.processor.TransferInterFieldComments(baseCopy.Pairs)
 
 	// Create result mapping, preserving base metadata
+	// If base is empty flow style and override has content, use block style
+	resultStyle := baseCopy.Style
+	if baseCopy.Style == node.StyleFlow && len(baseCopy.Pairs) == 0 && len(overrideMapping.Pairs) > 0 {
+		resultStyle = node.StyleBlock
+	}
+
 	result := &node.MappingNode{
-		BaseNode: baseCopy.BaseNode,
-		Pairs:    make([]*node.MappingPair, 0),
-		Style:    baseCopy.Style,
+		BaseNode:                baseCopy.BaseNode,
+		Pairs:                   make([]*node.MappingPair, 0),
+		Style:                   resultStyle,
+		HasDocumentHeadComments: baseCopy.HasDocumentHeadComments, // Preserve document head comments flag
 	}
 
 	// If override has a LineComment (inline comment on mapping key), preserve it

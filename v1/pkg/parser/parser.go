@@ -23,6 +23,7 @@ type Parser struct {
 	tagResolver    *TagResolver
 	inMergeKey     bool
 	inMappingValue bool // Track if we're currently parsing a mapping value
+	emptyLineQueue []*lexer.Token // Track explicit empty line tokens
 }
 
 // NewParser creates a new parser instance
@@ -79,10 +80,16 @@ func (p *Parser) advance() error {
 			break
 		}
 
-		// Queue comments for later association
+		// Queue comments and empty lines for later association
 		if token.Type == lexer.TokenComment {
 			p.commentQueue = append(p.commentQueue, token)
 			continue // Skip comments for now
+		}
+
+		// Queue empty lines for precise blank line tracking
+		if token.Type == lexer.TokenEmptyLine {
+			p.emptyLineQueue = append(p.emptyLineQueue, token)
+			continue // Skip empty lines for now
 		}
 
 		p.peek = token
@@ -92,8 +99,103 @@ func (p *Parser) advance() error {
 	return nil
 }
 
+// findNextKeyColumn looks ahead in the token stream to find the column of the next key at the same or shallower level
+func (p *Parser) findNextKeyColumn(startPos int, currentIndent int) int {
+	// Look ahead in the input to find the next key at the same or shallower level
+	lexerInput := p.lexer.GetInput()
+	if lexerInput == "" || startPos >= len(lexerInput) {
+		return -1
+	}
+
+	// Create a temporary lexer to scan ahead
+	tempLexer := lexer.NewLexerFromString(lexerInput[startPos:])
+	if err := tempLexer.Initialize(); err != nil {
+		return -1
+	}
+
+	for {
+		token, err := tempLexer.NextToken()
+		if err != nil || token == nil || token.Type == lexer.TokenEOF {
+			break
+		}
+
+		// Look for scalar keys that could be mapping keys
+		if token.Type == lexer.TokenPlainScalar || token.Type == lexer.TokenSingleQuotedScalar || token.Type == lexer.TokenDoubleQuotedScalar {
+			// Check if this is followed by a colon (making it a key)
+			nextToken, _ := tempLexer.NextToken()
+			if nextToken != nil && nextToken.Type == lexer.TokenMappingValue {
+				// This is a key, check its indentation level
+				keyColumn := token.Column + startPos
+				if keyColumn <= currentIndent {
+					// Found a key at same or shallower level
+					return keyColumn
+				}
+			}
+		}
+	}
+
+	return -1 // No next key found
+}
+
 // parseDocumentNode parses a YAML document node
 func (p *Parser) parseDocumentNode() node.Node {
+	// Collect document head comments only if they're truly document-level
+	// (i.e., followed by document markers or separated by blank lines from content)
+	var documentHeadComments []*lexer.Token
+
+	// Check if we have comments that are truly document-level
+	// We'll only treat them as document comments if:
+	// 1. They're followed by a document marker (---), or
+	// 2. They're generic file headers (like yaml-language-server directives)
+	if len(p.commentQueue) > 0 {
+		// Check if first comment looks like a document header
+		isDocumentHeader := false
+		if len(p.commentQueue) > 0 {
+			firstComment := p.commentQueue[0]
+			// Check for common document-level comment patterns
+			if strings.Contains(firstComment.Value, "yaml-language-server") ||
+				strings.Contains(firstComment.Value, "Default values") ||
+				strings.Contains(firstComment.Value, "This is a YAML") {
+				isDocumentHeader = true
+			}
+		}
+
+		// If it looks like a document header, capture only the header comments
+		if isDocumentHeader {
+			captureIndex := -1
+			for i, comment := range p.commentQueue {
+				// Stop capturing once we see comments that describe specific fields (starting with --)
+				if !strings.Contains(comment.Value, "yaml-language-server") &&
+					!strings.Contains(comment.Value, "Default values") &&
+					!strings.Contains(comment.Value, "This is a YAML") &&
+					!strings.Contains(comment.Value, "Declare variables") &&
+					!strings.Contains(comment.Value, "@schema") &&
+					!strings.Contains(comment.Value, "enum:") &&
+					!strings.Contains(comment.Value, "required:") &&
+					!strings.Contains(comment.Value, "additionalProperties:") &&
+					!strings.HasPrefix(comment.Value, "# vim:") &&
+					!strings.HasPrefix(comment.Value, "# -*- ") &&
+					!strings.Contains(comment.Value, " -- ") {
+					// This is likely a field comment, stop here
+					captureIndex = i
+					break
+				}
+			}
+
+			if captureIndex > 0 {
+				documentHeadComments = p.commentQueue[:captureIndex]
+				p.commentQueue = p.commentQueue[captureIndex:]
+			} else if captureIndex == 0 {
+				// No document comments, all are field comments
+				// Keep them in queue
+			} else {
+				// All comments look like document comments
+				documentHeadComments = p.commentQueue
+				p.commentQueue = nil
+			}
+		}
+	}
+
 	// Handle document markers
 	if p.current != nil && p.current.Type == lexer.TokenDocumentStart {
 		if err := p.advance(); err != nil {
@@ -105,7 +207,45 @@ func (p *Parser) parseDocumentNode() node.Node {
 	// Parse the document content
 	root := p.parseNode(0)
 
-	// Associate any leading comments with the root node
+	// If we have document head comments and a mapping node, attach them as metadata
+	if len(documentHeadComments) > 0 && root != nil {
+		if mappingNode, ok := root.(*node.MappingNode); ok {
+			// Convert comment tokens to CommentGroup
+			var comments []string
+			var blankLinesWithin []int
+			blankLinesBefore := 0
+
+			for i, token := range documentHeadComments {
+				comments = append(comments, token.Value)
+				// Track blank lines before each comment
+				if i == 0 {
+					blankLinesBefore = token.BlankLinesBefore
+					blankLinesWithin = append(blankLinesWithin, 0) // First comment has no blank lines within group
+				} else {
+					blankLinesWithin = append(blankLinesWithin, token.BlankLinesBefore)
+				}
+			}
+
+			if len(comments) > 0 {
+				// Store document head comments in the mapping node
+				mappingNode.HeadComment = &node.CommentGroup{
+					Comments:         comments,
+					BlankLinesBefore: blankLinesBefore,
+					BlankLinesWithin: blankLinesWithin,
+				}
+				// Mark that this mapping has document-level comments
+				mappingNode.HasDocumentHeadComments = true
+			}
+		} else if root != nil {
+			// For non-mapping root nodes, still try to associate comments
+			if len(documentHeadComments) > 0 {
+				// Put the comments back in the queue for normal association
+				p.commentQueue = append(documentHeadComments, p.commentQueue...)
+			}
+		}
+	}
+
+	// Associate any remaining comments with the root node
 	if root != nil && len(p.commentQueue) > 0 {
 		p.associateComments(root)
 	}
@@ -319,15 +459,60 @@ func (p *Parser) parseBlockSequence(indent int) node.Node {
 // parseBlockMapping parses a block-style mapping
 func (p *Parser) parseBlockMapping(indent int) node.Node {
 	pairs := make([]*node.MappingPair, 0)
+	exitedDueToIndent := false
 
 	for p.current != nil {
 		if p.current.Type == lexer.TokenEOF {
 			break
 		}
 
-		// Check if we're still in the mapping
+		// Check if we're still in the mapping BEFORE capturing comments
 		if p.current.Column < indent && indent > 0 {
+			// Leave comments in queue for parent level to handle
+			exitedDueToIndent = true
 			break
+		}
+
+		// Capture comments that belong to the NEXT key following hierarchical token path logic
+		var keyComments []*lexer.Token
+		var emptyLines []*lexer.Token
+
+		// Only capture comments that are at the correct hierarchical level
+		if len(p.commentQueue) > 0 {
+			// Look ahead to determine if there are more keys at the current level
+			nextKeyColumn := p.findNextKeyColumn(p.lexer.GetPos() + 1, indent)
+
+			for i, comment := range p.commentQueue {
+				// Comments should belong to this key if:
+				// 1. They are at or before current key's indentation, AND
+				// 2. They are not intended for a deeper nested key
+				shouldCapture := false
+
+				if comment.Column <= p.current.Column {
+					// Check if this comment is for a child key by looking at the next key
+					if nextKeyColumn == -1 || comment.Column <= nextKeyColumn {
+						// This comment belongs to the current key
+						shouldCapture = true
+					}
+				}
+
+				if shouldCapture {
+					keyComments = append(keyComments, comment)
+				} else {
+					// Keep remaining comments for deeper levels or next keys
+					p.commentQueue = p.commentQueue[i:]
+					break
+				}
+			}
+			// If we captured all comments, clear the queue
+			if len(keyComments) == len(p.commentQueue) {
+				p.commentQueue = nil
+			}
+		}
+
+		if len(p.emptyLineQueue) > 0 {
+			emptyLines = p.emptyLineQueue
+			p.emptyLineQueue = nil
 		}
 
 		// Parse explicit key
@@ -342,6 +527,11 @@ func (p *Parser) parseBlockMapping(indent int) node.Node {
 				key = p.parseScalar()
 			} else {
 				key = p.nodeBuilder.BuildScalar("", node.StylePlain)
+			}
+
+			// Associate captured comments and empty lines with the key
+			if (len(keyComments) > 0 || len(emptyLines) > 0) && key != nil {
+				p.associateCommentsAndEmptyLines(key, keyComments, emptyLines)
 			}
 
 			// Expect ':' for value
@@ -400,6 +590,11 @@ func (p *Parser) parseBlockMapping(indent int) node.Node {
 			// Parse implicit key (plain scalar followed by ':')
 			key := p.parseScalar()
 
+			// Associate captured comments and empty lines with the key
+			if (len(keyComments) > 0 || len(emptyLines) > 0) && key != nil {
+				p.associateCommentsAndEmptyLines(key, keyComments, emptyLines)
+			}
+
 			if p.current != nil && p.current.Type == lexer.TokenMappingValue {
 				if err := p.advance(); err != nil {
 					p.addError(err.Error())
@@ -441,17 +636,20 @@ func (p *Parser) parseBlockMapping(indent int) node.Node {
 					if mapping, ok := value.(*node.MappingNode); ok {
 						// Store the inline comment in the mapping's LineComment
 						mapping.LineComment = &node.CommentGroup{
-							Comments: []string{inlineComment.Value},
+							Comments:         []string{inlineComment.Value},
+							BlankLinesWithin: []int{0},
 						}
 					} else if seq, ok := value.(*node.SequenceNode); ok {
 						// Store the inline comment in the sequence's LineComment
 						seq.LineComment = &node.CommentGroup{
-							Comments: []string{inlineComment.Value},
+							Comments:         []string{inlineComment.Value},
+							BlankLinesWithin: []int{0},
 						}
 					} else if scalar, ok := value.(*node.ScalarNode); ok {
 						// Store the inline comment in the scalar's LineComment
 						scalar.LineComment = &node.CommentGroup{
-							Comments: []string{inlineComment.Value},
+							Comments:         []string{inlineComment.Value},
+							BlankLinesWithin: []int{0},
 						}
 					}
 				}
@@ -469,7 +667,11 @@ func (p *Parser) parseBlockMapping(indent int) node.Node {
 	}
 
 	mapping := p.nodeBuilder.BuildMapping(pairs, node.StyleBlock)
-	p.associateComments(mapping)
+	// Only associate comments if we didn't exit due to indent mismatch
+	// If we exited due to indent, leave comments for parent level
+	if !exitedDueToIndent {
+		p.associateComments(mapping)
+	}
 	return mapping
 }
 
@@ -642,6 +844,48 @@ func (p *Parser) processPendingComments() {
 	p.commentQueue = nil
 }
 
+// associateCommentsAndEmptyLines associates both comments and empty lines with a node
+func (p *Parser) associateCommentsAndEmptyLines(n node.Node, comments []*lexer.Token, emptyLines []*lexer.Token) {
+	if n == nil {
+		return
+	}
+
+	baseNode, ok := n.(interface{ GetBase() *node.BaseNode })
+	if !ok {
+		return
+	}
+	base := baseNode.GetBase()
+
+	// Process comments
+	if len(comments) > 0 {
+		commentStrings := make([]string, len(comments))
+		blankLinesWithin := make([]int, len(comments))
+		emptyLineMarkers := make([]int, len(comments))
+
+		for i, comment := range comments {
+			commentStrings[i] = comment.Value
+			blankLinesWithin[i] = comment.BlankLinesBefore
+		}
+
+		// Process empty lines and convert them to empty line markers
+		for i, _ := range emptyLines {
+			if i < len(emptyLineMarkers) {
+				emptyLineMarkers[i] = 1 // One empty line marker per ##EMPTY_LINE## token
+			}
+		}
+
+		base.HeadComment = &node.CommentGroup{
+			Comments:         commentStrings,
+			BlankLinesWithin: blankLinesWithin,
+			EmptyLineMarkers: emptyLineMarkers,
+			Format: node.CommentFormat{
+				PreserveSpacing: true,
+				GroupRelated:    true,
+			},
+		}
+	}
+}
+
 func (p *Parser) associateComments(n node.Node) {
 	// Associate pending comments with the node
 	if len(p.commentQueue) > 0 && n != nil {
@@ -686,11 +930,14 @@ func (p *Parser) associateComments(n node.Node) {
 
 		// Associate the filtered comments - but limit to avoid duplicates
 		associatedCount := 0
+		schemaCommentCount := 0
 		for _, comment := range commentsToAssociate {
-			// Skip duplicate @schema comments
-			if strings.Contains(comment.Value, "@schema") && associatedCount > 0 {
-				// For now, just skip additional @schema comments to avoid duplicates
-				continue
+			// Allow @schema comments but limit excessive duplication (more than 3 in a row)
+			if strings.Contains(comment.Value, "@schema") {
+				schemaCommentCount++
+				if schemaCommentCount > 10 { // Allow up to 10 @schema comments per node (generous limit)
+					continue
+				}
 			}
 
 			// Create a comment processor to associate comments
@@ -706,6 +953,52 @@ func (p *Parser) associateComments(n node.Node) {
 		// Keep the remaining comments for the next node
 		p.commentQueue = commentsToKeep
 	}
+}
+
+// processFootComments processes comments that appear after a node (foot comments)
+func (p *Parser) processFootComments(n node.Node) {
+	if len(p.commentQueue) == 0 || n == nil {
+		return
+	}
+
+	baseNode, ok := n.(interface{ GetBase() *node.BaseNode })
+	if !ok {
+		return
+	}
+	base := baseNode.GetBase()
+
+	// Look for comments that should be foot comments (after the current node)
+	var footComments []string
+	var remainingComments []*lexer.Token
+
+	for _, comment := range p.commentQueue {
+		// Comments that are not inline and appear after current parsing position
+		// are likely foot comments
+		if !comment.IsInline && p.current != nil && comment.Line < p.current.Line {
+			footComments = append(footComments, comment.Value)
+		} else {
+			remainingComments = append(remainingComments, comment)
+		}
+	}
+
+	// Associate foot comments if we found any
+	if len(footComments) > 0 {
+		if base.FootComment == nil {
+			base.FootComment = &node.CommentGroup{
+				Comments: footComments,
+				Format: node.CommentFormat{
+					PreserveSpacing: true,
+					GroupRelated:    true,
+				},
+			}
+		} else {
+			// Append to existing foot comments
+			base.FootComment.Comments = append(base.FootComment.Comments, footComments...)
+		}
+	}
+
+	// Update the comment queue
+	p.commentQueue = remainingComments
 }
 
 // ParseString is a convenience method to parse a YAML string

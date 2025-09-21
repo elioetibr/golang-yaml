@@ -219,10 +219,10 @@ func TestNodeProcessor_CreateMappingPair(t *testing.T) {
 
 		// Create base pair with metadata
 		basePair := &node.MappingPair{
-			Key:   key,
-			Value: value,
-			KeyComment: &node.CommentGroup{Comments: []string{"key comment"}},
-			ValueComment: &node.CommentGroup{Comments: []string{"value comment"}},
+			Key:              key,
+			Value:            value,
+			KeyComment:       &node.CommentGroup{Comments: []string{"key comment"}},
+			ValueComment:     &node.CommentGroup{Comments: []string{"value comment"}},
 			BlankLinesBefore: 1,
 			BlankLinesAfter:  2,
 		}
@@ -297,10 +297,10 @@ func TestNodeProcessor_CreateMappingPair(t *testing.T) {
 		value := builder.BuildScalar("value", node.StylePlain)
 
 		basePair := &node.MappingPair{
-			Key:   key,
-			Value: value,
-			KeyComment: &node.CommentGroup{Comments: []string{"key comment"}},
-			ValueComment: &node.CommentGroup{Comments: []string{"value comment"}},
+			Key:              key,
+			Value:            value,
+			KeyComment:       &node.CommentGroup{Comments: []string{"key comment"}},
+			ValueComment:     &node.CommentGroup{Comments: []string{"value comment"}},
 			BlankLinesBefore: 1,
 			BlankLinesAfter:  2,
 		}

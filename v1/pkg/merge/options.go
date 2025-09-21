@@ -43,6 +43,16 @@ type Options struct {
 
 	// KeyPriority defines which document's keys take priority for ordering
 	KeyPriority KeyPriority
+
+	// KeepDefaultLineBetweenSections preserves original blank line count between sections
+	// When true, the original number of blank lines is preserved
+	// When false, uses DefaultLineBetweenSections value
+	KeepDefaultLineBetweenSections bool
+
+	// DefaultLineBetweenSections specifies number of blank lines between sections
+	// Only used when KeepDefaultLineBetweenSections is false
+	// Default value is 1
+	DefaultLineBetweenSections int
 }
 
 // ArrayMergeStrategy defines how arrays should be merged
@@ -76,13 +86,15 @@ const (
 // the original document structure and documentation
 func DefaultOptions() *Options {
 	return &Options{
-		Strategy:           StrategyDeep,
-		PreserveComments:   true, // Always preserve comments by default
-		PreserveBlankLines: true, // Always preserve blank lines by default
-		ArrayMergeStrategy: ArrayReplace,
-		OverrideEmpty:      false,
-		MergeAnchors:       true,
-		KeyPriority:        KeyPriorityBase, // Maintain base document's structure
+		Strategy:                       StrategyDeep,
+		PreserveComments:               true, // Always preserve comments by default
+		PreserveBlankLines:             true, // Always preserve blank lines by default
+		ArrayMergeStrategy:             ArrayReplace,
+		OverrideEmpty:                  false,
+		MergeAnchors:                   true,
+		KeyPriority:                    KeyPriorityBase, // Maintain base document's structure
+		KeepDefaultLineBetweenSections: true,            // Keep original blank line count by default
+		DefaultLineBetweenSections:     1,               // 1 blank line between sections when normalized
 	}
 }
 
@@ -107,5 +119,19 @@ func (o *Options) WithKeyPriority(p KeyPriority) *Options {
 // WithOverrideEmpty returns options with the specified override empty behavior
 func (o *Options) WithOverrideEmpty(override bool) *Options {
 	o.OverrideEmpty = override
+	return o
+}
+
+// WithSectionHandling returns options with the specified section handling configuration
+func (o *Options) WithSectionHandling(keepDefault bool, defaultLines int) *Options {
+	o.KeepDefaultLineBetweenSections = keepDefault
+	o.DefaultLineBetweenSections = defaultLines
+	return o
+}
+
+// WithNormalizedSections returns options that normalize blank lines between sections
+func (o *Options) WithNormalizedSections(lines int) *Options {
+	o.KeepDefaultLineBetweenSections = false
+	o.DefaultLineBetweenSections = lines
 	return o
 }

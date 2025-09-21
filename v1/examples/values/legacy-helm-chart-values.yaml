@@ -1,0 +1,114 @@
+autoscaling:
+  enabled: false
+  maxReplicas: 1
+  minReplicas: 1
+configMap:
+  application.properties:
+    auth.client_uuid: 0d0b1d94-4971-43ef-bdaa-8108ac1ffc55
+    auth.refresh_token_backoff_multiplier: 1
+    auth.refresh_token_interval_ms: 270000
+    auth.refresh_token_max_attempts: 3
+    auth.refresh_token_wait_duration_ms: 1000
+    auth.service_uri: https://auth/authorize_client
+    compliance.export.bucket: viafoura-gdpr-exports.misconfigured
+    compliance.kafka.bootstrap: kafka:9092
+    content_scores.kafka.bootstrap: kafka:9092
+    customer.keys.get_retry_count: 30
+    customer.keys.get_retry_wait_ms: 1000
+    livecomments-trending.service.max_retries: 10
+    livecomments-trending.service.mysql.db: livecomments
+    livecomments-trending.service.mysql.ro.host: livecomments-mysql-trending
+    livecomments-trending.service.mysql.ro.idle_timeout_ms: 60000
+    livecomments-trending.service.mysql.ro.max_lifetime_ms: 600000
+    livecomments-trending.service.mysql.ro.max_pool_size: 5
+    livecomments-trending.service.mysql.ro.min_pool_size: 1
+    livecomments-trending.service.mysql.ro.password: vf
+    livecomments-trending.service.mysql.ro.user: livecomments
+    livecomments.service.aws.bucket_name: origin-livecommentsmedia.env.net
+    livecomments.service.cache.parent_site_cache_ttl_m: 10
+    livecomments.service.cache.parent_site_max_cache_size: 1000
+    livecomments.service.cache.relative_sections_cache_ttl_m: 5
+    livecomments.service.cache.relative_sections_max_cache_size: 300
+    livecomments.service.cache.site_group_cache_ttl_m: 5
+    livecomments.service.cache.site_group_max_cache_size: 100
+    livecomments.service.content_container_cache_max_size: 5000
+    livecomments.service.content_container_cache_ttl_m: 5
+    livecomments.service.content_container_comment_count_and_status_cache_max_size: 5000
+    livecomments.service.content_container_comment_count_and_status_cache_ttl_m: 5
+    livecomments.service.health-check.liveness.port: 8081
+    livecomments.service.heartbeat_interval: 30000
+    livecomments.service.max_content_page_size: 100
+    livecomments.service.mysql.connection_timeout_ms: 10000
+    livecomments.service.mysql.db: livecomments
+    livecomments.service.mysql.host: livecomments-mysql
+    livecomments.service.mysql.idle_timeout_ms: 60000
+    livecomments.service.mysql.max_lifetime_ms: 60000
+    livecomments.service.mysql.max_pool_size: 5
+    livecomments.service.mysql.max_retries: 10
+    livecomments.service.mysql.min_pool_size: 1
+    livecomments.service.mysql.ro.connection_timeout_ms: 10000
+    livecomments.service.mysql.ro.host: livecomments-mysql-ro
+    livecomments.service.mysql.ro.idle_timeout_ms: 60000
+    livecomments.service.mysql.ro.max_lifetime_ms: 600000
+    livecomments.service.mysql.ro.max_pool_size: 5
+    livecomments.service.mysql.ro.min_pool_size: 1
+    livecomments.service.mysql.ro.user: livecomments
+    livecomments.service.mysql.user: livecomments
+    livecomments.service.request.timeout: 20000
+    livecomments.service.server.port: 8080
+    livecomments.service.settings_cache_max_size: 5000
+    livecomments.service.settings_cache_ttl_m: 5
+    livecomments.service.total_visible_content_cache_max_size: 2000
+    livecomments.service.total_visible_content_cache_ttl_m: 5
+    livecomments.service.trending_content_cache_max_size: 500
+    livecomments.service.user_profile_cache_max_size: 200
+    livecomments.service.user_profile_cache_ttl_m: 5
+    moderation.kafka.bootstrap: kafka:9092
+    publisher.kafka.bootstrap: kafka:9092
+    section_tree.client.cache_expiry_sec: 15
+    section_tree.client.service_url: http://tyrion/v3/sections
+    section_tree.client.timeout_ms: 5000
+    settings_client.cache_expiry_ms: 1
+    settings_service.request_timeout_ms: 5000
+    settings_service.url: http://tyrion/v3/settings
+    user_actions.kafka.bootstrap: kafka:9092
+    v2api.uri: http://phpapi/v2
+    validation.originUrl.definedDomainCheck.enabled: true
+  vfmetrics.properties:
+    datadog.pattern: .*
+    datadog.prefix: ''
+    datadog.report-interval: 60
+    datadog.tags: environment:misconfigured
+    datadog.transport.type: udp
+    heartbeat.enabled: true
+    heartbeat.report-interval: 1
+    namespace: livecomments
+    reporters: ''
+envVars:
+  JAVA_OPTS: '-XX:NativeMemoryTracking=summary -Xms100m -Xmx100m -Dthumbnailator.conserveMemoryWorkaround=true -Dlog4j2.formatMsgNoLookups=True'
+hosts:
+  public:
+    domains:
+      - livecomments.example.org
+image:
+  name: livecomments-service
+  repository: 218894879100.dkr.ecr.us-east-1.amazonaws.com
+  tag: v5.12.1  # LATEST PRODUCTION VERSION
+replicaCount: 1
+resources:
+  limits:
+    cpu: 400m
+    memory: 450Mi
+  requests:
+    cpu: 25m
+    memory: 450Mi
+secrets:
+  application.conf:  # SECRETS NAME USED BY THE APPLICATION
+    auth.client_secret: viafoura
+    livecomments.service.jwt.secret1: this is my secret
+    livecomments.service.jwt.secret2: this is another secret
+    livecomments.service.mysql.password: vf
+    livecomments.service.mysql.ro.password: vf
+service:
+  port: 80
+  targetPort: 8080

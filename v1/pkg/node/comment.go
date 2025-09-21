@@ -14,7 +14,7 @@ const (
 	CommentPositionBelow
 	CommentPositionKey
 	CommentPositionValue
-	CommentPositionSection  // Comments at section level
+	CommentPositionSection // Comments at section level
 	CommentPositionAny     // Matches any position (for rules)
 )
 
@@ -22,19 +22,19 @@ const (
 type CommentStyle int
 
 const (
-	CommentStyleHash CommentStyle = iota // # comment
-	CommentStyleDoubleHash                // ## comment
-	CommentStylePlain                     // plain comment
+	CommentStyleHash       CommentStyle = iota // # comment
+	CommentStyleDoubleHash                     // ## comment
+	CommentStylePlain                          // plain comment
 )
 
 // CommentRule defines rules for comment formatting and blank line insertion
 type CommentRule struct {
-	Pattern        *regexp.Regexp
-	BlankLines     int
-	Position       CommentPosition
-	Description    string
-	SectionType    SectionType // Apply rule only to specific section types
-	ApplyToAll     bool        // Apply to all sections regardless of type
+	Pattern     *regexp.Regexp
+	BlankLines  int
+	Position    CommentPosition
+	Description string
+	SectionType SectionType // Apply rule only to specific section types
+	ApplyToAll  bool        // Apply to all sections regardless of type
 }
 
 // CommentProcessor manages comment formatting, section detection, and blank line rules

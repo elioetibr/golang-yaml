@@ -15,9 +15,9 @@ func TestDemoSectionBasedYAML(t *testing.T) {
 
 	// Create Header Section
 	headerSection := &Section{
-		ID:    "header",
-		Type:  SectionTypeHeader,
-		Title: "Application Configuration",
+		ID:          "header",
+		Type:        SectionTypeHeader,
+		Title:       "Application Configuration",
 		Description: "Main configuration file for the application",
 		Nodes: []Node{
 			builder.BuildMapping([]*MappingPair{
