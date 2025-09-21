@@ -187,8 +187,8 @@ func (p *Parser) parseNode(indent int) node.Node {
 	case lexer.TokenPlainScalar, lexer.TokenSingleQuotedScalar,
 		lexer.TokenDoubleQuotedScalar, lexer.TokenLiteralScalar,
 		lexer.TokenFoldedScalar:
-		// Check if this scalar is a key in a mapping
-		if p.peek != nil && p.peek.Type == lexer.TokenMappingValue {
+		// Check if this scalar is a key in a mapping (colon on same line)
+		if p.peek != nil && p.peek.Type == lexer.TokenMappingValue && p.current.Line == p.peek.Line {
 			n = p.parseBlockMapping(indent)
 		} else {
 			n = p.parseScalar()
@@ -561,7 +561,7 @@ func (p *Parser) parseFlowMapping() node.Node {
 // Helper methods
 
 func (p *Parser) isBlockMappingStart() bool {
-	// Check if current token is a scalar followed by ':'
+	// Check if current token is a scalar followed by ':' on the same line
 	if p.current == nil || p.peek == nil {
 		return false
 	}
@@ -570,7 +570,8 @@ func (p *Parser) isBlockMappingStart() bool {
 		p.current.Type == lexer.TokenSingleQuotedScalar ||
 		p.current.Type == lexer.TokenDoubleQuotedScalar
 
-	return isScalar && p.peek.Type == lexer.TokenMappingValue
+	// Only consider it a mapping start if the colon is on the same line
+	return isScalar && p.peek.Type == lexer.TokenMappingValue && p.current.Line == p.peek.Line
 }
 
 func (p *Parser) processPendingComments() {
