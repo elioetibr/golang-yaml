@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elioetibr/golang-yaml/pkg/parser"
-	"github.com/elioetibr/golang-yaml/pkg/serializer"
+	"github.com/elioetibr/golang-yaml/v0/pkg/parser"
+	"github.com/elioetibr/golang-yaml/v0/pkg/serializer"
 )
 
 // YAMLTestCase represents a test case from the YAML test suite

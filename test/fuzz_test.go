@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elioetibr/golang-yaml/pkg/decoder"
-	"github.com/elioetibr/golang-yaml/pkg/encoder"
-	"github.com/elioetibr/golang-yaml/pkg/parser"
+	"github.com/elioetibr/golang-yaml/v0/pkg/decoder"
+	"github.com/elioetibr/golang-yaml/v0/pkg/encoder"
+	"github.com/elioetibr/golang-yaml/v0/pkg/parser"
 )
 
 // FuzzParser tests the parser with random inputs

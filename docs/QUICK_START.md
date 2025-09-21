@@ -364,7 +364,7 @@ func MergeYAMLFiles(files ...string) (node.Node, error) {
 
 ## Next Steps
 
-- Read the [API Documentation](API.md) for detailed reference
+- Read the [API Documentation](../v1/docs/API.md) for detailed reference
 - Check [examples](../examples/) for more complex use cases
 - See [YAML 1.2.2 Compliance](YAML_1.2.2_COMPLIANCE.md) for spec details
 - Review the [ROADMAP](ROADMAP.md) for upcoming features

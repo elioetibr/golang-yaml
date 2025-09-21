@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elioetibr/golang-yaml/pkg/decoder"
-	"github.com/elioetibr/golang-yaml/pkg/encoder"
-	"github.com/elioetibr/golang-yaml/pkg/node"
-	"github.com/elioetibr/golang-yaml/pkg/parser"
-	"github.com/elioetibr/golang-yaml/pkg/serializer"
-	"github.com/elioetibr/golang-yaml/pkg/transform"
+	"github.com/elioetibr/golang-yaml/v0/pkg/decoder"
+	"github.com/elioetibr/golang-yaml/v0/pkg/encoder"
+	"github.com/elioetibr/golang-yaml/v0/pkg/node"
+	parser2 "github.com/elioetibr/golang-yaml/v0/pkg/parser"
+	"github.com/elioetibr/golang-yaml/v0/pkg/serializer"
+	"github.com/elioetibr/golang-yaml/v0/pkg/transform"
 )
 
 // TestFullPipeline tests the complete pipeline
@@ -34,7 +34,7 @@ features:
   - metrics`
 
 	// 1. Parse
-	root, err := parser.ParseString(input)
+	root, err := parser2.ParseString(input)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -109,7 +109,7 @@ data:
       - monitoring`
 
 	// Parse the config
-	root, err := parser.ParseString(config)
+	root, err := parser2.ParseString(config)
 	if err != nil {
 		t.Fatalf("Failed to parse real-world config: %v", err)
 	}
@@ -145,7 +145,7 @@ document: 3
 type: metadata
 ...`
 
-	stream, err := parser.ParseStream(input)
+	stream, err := parser2.ParseStream(input)
 	if err != nil {
 		t.Fatalf("Stream parsing failed: %v", err)
 	}
@@ -327,7 +327,7 @@ func TestErrorHandling(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := parser.ParseString(tc.input)
+			_, err := parser2.ParseString(tc.input)
 			if tc.expectError && err == nil {
 				t.Error("Expected error but got none")
 			} else if !tc.expectError && err != nil {
@@ -352,7 +352,7 @@ key2: value2
 # Footer comment`
 
 	// Parse
-	root, err := parser.ParseString(input)
+	root, err := parser2.ParseString(input)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -389,7 +389,7 @@ enabled: true`
 			defer func() { done <- true }()
 
 			// Parse
-			root, err := parser.ParseString(yaml)
+			root, err := parser2.ParseString(yaml)
 			if err != nil {
 				t.Errorf("Goroutine %d: parse failed: %v", id, err)
 				return

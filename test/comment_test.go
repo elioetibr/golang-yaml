@@ -3,9 +3,9 @@ package test
 import (
 	"testing"
 
-	"github.com/elioetibr/golang-yaml/pkg/parser"
-	"github.com/elioetibr/golang-yaml/pkg/serializer"
-	"github.com/elioetibr/golang-yaml/pkg/transform"
+	"github.com/elioetibr/golang-yaml/v0/pkg/parser"
+	"github.com/elioetibr/golang-yaml/v0/pkg/serializer"
+	"github.com/elioetibr/golang-yaml/v0/pkg/transform"
 )
 
 // TestCommentSorting tests that comments are preserved correctly during sorting

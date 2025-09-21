@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elioetibr/golang-yaml/pkg/parser"
+	"github.com/elioetibr/golang-yaml/v0/pkg/parser"
 )
 
 // OfficialTestResult tracks results from the official YAML test suite

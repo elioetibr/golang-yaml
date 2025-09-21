@@ -1,7 +1,8 @@
 package test
 
 import (
-	"github.com/elioetibr/golang-yaml/pkg/parser"
+	"github.com/elioetibr/golang-yaml/v0/pkg/parser"
+
 	"testing"
 )
 

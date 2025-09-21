@@ -88,8 +88,8 @@ package main
 import (
     "fmt"
     "log"
-    "github.com/elioetibr/golang-yaml/pkg/encoder"
-    "github.com/elioetibr/golang-yaml/pkg/decoder"
+    "github.com/elioetibr/golang-yaml/v0/pkg/encoder"
+    "github.com/elioetibr/golang-yaml/v0/pkg/decoder"
 )
 
 func main() {
@@ -136,8 +136,8 @@ func main() {
 
 ```go
 import (
-    "github.com/elioetibr/golang-yaml/pkg/parser"
-    "github.com/elioetibr/golang-yaml/pkg/decoder"
+    "github.com/elioetibr/golang-yaml/v0/pkg/parser"
+    "github.com/elioetibr/golang-yaml/v0/pkg/decoder"
 )
 
 yamlData := `
@@ -172,9 +172,9 @@ err = decoder.Unmarshal([]byte(yamlData), &services)
 
 ```go
 import (
-    "github.com/elioetibr/golang-yaml/pkg/parser"
-    "github.com/elioetibr/golang-yaml/pkg/serializer"
-    "github.com/elioetibr/golang-yaml/pkg/transform"
+    "github.com/elioetibr/golang-yaml/v0/pkg/parser"
+    "github.com/elioetibr/golang-yaml/v0/pkg/serializer"
+    "github.com/elioetibr/golang-yaml/v0/pkg/transform"
 )
 
 yamlData := `
@@ -209,8 +209,8 @@ fmt.Println(output)
 
 ```go
 import (
-    "github.com/elioetibr/golang-yaml/pkg/parser"
-    "github.com/elioetibr/golang-yaml/pkg/serializer"
+    "github.com/elioetibr/golang-yaml/v0/pkg/parser"
+    "github.com/elioetibr/golang-yaml/v0/pkg/serializer"
 )
 
 yamlWithComments := `
@@ -246,7 +246,7 @@ fmt.Println(output)
 The parser package provides low-level parsing capabilities:
 
 ```go
-import "github.com/elioetibr/golang-yaml/pkg/parser"
+import "github.com/elioetibr/golang-yaml/v0/pkg/parser"
 
 // Parse from string
 root, err := parser.ParseString(yamlString)
@@ -273,8 +273,8 @@ High-level Marshal/Unmarshal API similar to encoding/json:
 
 ```go
 import (
-    "github.com/elioetibr/golang-yaml/pkg/encoder"
-    "github.com/elioetibr/golang-yaml/pkg/decoder"
+    "github.com/elioetibr/golang-yaml/v0/pkg/encoder"
+    "github.com/elioetibr/golang-yaml/v0/pkg/decoder"
 )
 
 // Marshal Go value to YAML
@@ -317,8 +317,8 @@ Advanced transformation capabilities:
 
 ```go
 import (
-    "github.com/elioetibr/golang-yaml/pkg/transform"
-    "github.com/elioetibr/golang-yaml/pkg/parser"
+    "github.com/elioetibr/golang-yaml/v0/pkg/transform"
+    "github.com/elioetibr/golang-yaml/v0/pkg/parser"
 )
 
 // Sorting with different strategies
@@ -351,7 +351,7 @@ formatted := formatter.Format(root)
 AST node manipulation:
 
 ```go
-import "github.com/elioetibr/golang-yaml/pkg/node"
+import "github.com/elioetibr/golang-yaml/v0/pkg/node"
 
 // Build nodes programmatically
 builder := &node.DefaultBuilder{}
@@ -429,7 +429,7 @@ For detailed compliance information, see [docs/YAML_1.2.2_COMPLIANCE.md](docs/YA
 | Document | Description |
 |----------|-------------|
 | [Quick Start Guide](docs/QUICK_START.md) | Get started quickly with basic operations and common patterns |
-| [API Documentation](docs/API.md) | Complete API reference for all packages |
+| [API Documentation](v1/docs/API.md) | Complete API reference for all packages |
 | [Features Overview](docs/FEATURES.md) | Comprehensive feature list with detailed explanations |
 | [YAML 1.2.2 Compliance](docs/YAML_1.2.2_COMPLIANCE.md) | Detailed specification compliance status |
 | [Development Roadmap](docs/ROADMAP.md) | Project roadmap with completed and planned features |
@@ -437,7 +437,7 @@ For detailed compliance information, see [docs/YAML_1.2.2_COMPLIANCE.md](docs/YA
 ### 🚀 Key Resources
 
 - **Getting Started**: Begin with the [Quick Start Guide](docs/QUICK_START.md)
-- **API Reference**: Detailed package documentation in [API.md](docs/API.md)
+- **API Reference**: Detailed package documentation in [API.md](v1/docs/API.md)
 - **Feature Deep-Dive**: Explore all capabilities in [FEATURES.md](docs/FEATURES.md)
 - **Spec Compliance**: YAML 1.2.2 compliance details in [YAML_1.2.2_COMPLIANCE.md](docs/YAML_1.2.2_COMPLIANCE.md)
 - **Future Plans**: See what's coming next in [ROADMAP.md](docs/ROADMAP.md)
@@ -449,7 +449,7 @@ For detailed compliance information, see [docs/YAML_1.2.2_COMPLIANCE.md](docs/YA
 The merge package provides powerful YAML merging capabilities with multiple strategies:
 
 ```go
-import "github.com/elioetibr/golang-yaml/pkg/merge"
+import "github.com/elioetibr/golang-yaml/v0/pkg/merge"
 
 // Basic file merging
 err := merge.MergeFilesToFile(
@@ -494,8 +494,8 @@ merged, err := merge.MergeStrings(base, override)
 
 ```go
 import (
-    "github.com/elioetibr/golang-yaml/pkg/decoder"
-    "github.com/elioetibr/golang-yaml/pkg/errors"
+    "github.com/elioetibr/golang-yaml/v0/pkg/decoder"
+    "github.com/elioetibr/golang-yaml/v0/pkg/errors"
 )
 
 // Safe decoding with error handling
@@ -519,8 +519,8 @@ err = decoder.UnmarshalStrict(yamlData, &config)
 
 ```go
 import (
-    "github.com/elioetibr/golang-yaml/pkg/parser"
-    "github.com/elioetibr/golang-yaml/pkg/node"
+    "github.com/elioetibr/golang-yaml/v0/pkg/parser"
+    "github.com/elioetibr/golang-yaml/v0/pkg/node"
 )
 
 yamlWithTags := `
@@ -548,8 +548,8 @@ node.Walk(root, visitor)
 
 ```go
 import (
-    "github.com/elioetibr/golang-yaml/pkg/parser"
-    "github.com/elioetibr/golang-yaml/pkg/serializer"
+    "github.com/elioetibr/golang-yaml/v0/pkg/parser"
+    "github.com/elioetibr/golang-yaml/v0/pkg/serializer"
 )
 
 multiDoc := `
@@ -592,8 +592,8 @@ output, _ := serializer.SerializeToString(stream, nil)
 
 ```go
 import (
-    "github.com/elioetibr/golang-yaml/pkg/parser"
-    "github.com/elioetibr/golang-yaml/pkg/serializer"
+    "github.com/elioetibr/golang-yaml/v0/pkg/parser"
+    "github.com/elioetibr/golang-yaml/v0/pkg/serializer"
 )
 
 // Parse with full preservation
@@ -635,11 +635,11 @@ output, _ := serializer.SerializeToString(root, opts)
 
 ## Examples
 
-See the [examples](examples/) directory for more usage examples:
-- [full_demo.go](examples/full_demo.go) - Comprehensive feature demonstration
-- [advanced_demo.go](examples/advanced_demo.go) - Advanced features showcase
-- [merge/](examples/merge/) - YAML merging examples
-- [values-with-comments/](examples/values-with-comments/) - Comment preservation examples
+See the [examples](v1/examples/) directory for more usage examples:
+- [full_demo.go](v1/examples/full_demo.go) - Comprehensive feature demonstration
+- [advanced_demo.go](v1/examples/advanced_demo.go) - Advanced features showcase
+- [merge/](v1/examples/merge/) - YAML merging examples
+- [values-with-comments/](v1/examples/values-with-comments/) - Comment preservation examples
 
 ## Testing
 

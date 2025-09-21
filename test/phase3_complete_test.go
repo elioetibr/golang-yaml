@@ -1,9 +1,10 @@
 package test
 
 import (
-	"github.com/elioetibr/golang-yaml/pkg/parser"
-	"github.com/elioetibr/golang-yaml/pkg/serializer"
-	"github.com/elioetibr/golang-yaml/pkg/transform"
+	"github.com/elioetibr/golang-yaml/v0/pkg/parser"
+	"github.com/elioetibr/golang-yaml/v0/pkg/serializer"
+	transform2 "github.com/elioetibr/golang-yaml/v0/pkg/transform"
+
 	"testing"
 )
 
@@ -89,45 +90,45 @@ config:
 
 	// 1. Basic ascending sort
 	t.Log("1. Basic Ascending Sort:")
-	config1 := &transform.SortConfig{
-		Mode:   transform.SortModeAscending,
-		SortBy: transform.SortByKey,
+	config1 := &transform2.SortConfig{
+		Mode:   transform2.SortModeAscending,
+		SortBy: transform2.SortByKey,
 	}
-	sorted1 := transform.NewSorter(config1).Sort(root)
+	sorted1 := transform2.NewSorter(config1).Sort(root)
 	output1, _ := serializer.SerializeToString(sorted1, nil)
 	t.Logf("   Keys sorted A-Z ✓")
 
 	// 2. Priority-based sort (Kubernetes style)
 	t.Log("\n2. Priority-based Sort (Kubernetes style):")
-	config2 := &transform.SortConfig{
-		Mode:     transform.SortModeAscending,
-		SortBy:   transform.SortByKey,
+	config2 := &transform2.SortConfig{
+		Mode:     transform2.SortModeAscending,
+		SortBy:   transform2.SortByKey,
 		Priority: []string{"apiVersion", "kind", "metadata", "spec", "data"},
 	}
-	sorted2 := transform.NewPrioritySorter(config2).Sort(root)
+	sorted2 := transform2.NewPrioritySorter(config2).Sort(root)
 	output2, _ := serializer.SerializeToString(sorted2, nil)
 	t.Logf("   Priority keys first (apiVersion, kind, metadata...) ✓")
 
 	// 3. Section-aware sort
 	t.Log("\n3. Section-aware Sort:")
-	config3 := &transform.SortConfig{
-		Mode:           transform.SortModeAscending,
-		SortBy:         transform.SortByKey,
+	config3 := &transform2.SortConfig{
+		Mode:           transform2.SortModeAscending,
+		SortBy:         transform2.SortByKey,
 		SectionMarkers: []string{"===", "Section"},
 	}
-	sorted3 := transform.NewSectionSorter(config3).SortWithSections(root)
+	sorted3 := transform2.NewSectionSorter(config3).SortWithSections(root)
 	output3, _ := serializer.SerializeToString(sorted3, nil)
 	t.Logf("   Each section sorted independently ✓")
 
 	// 4. Path-based exclusions
 	t.Log("\n4. Path-based Exclusions:")
-	config4 := &transform.SortConfig{
-		Mode:            transform.SortModeAscending,
-		SortBy:          transform.SortByKey,
-		Scope:           transform.SortScopeNested,
+	config4 := &transform2.SortConfig{
+		Mode:            transform2.SortModeAscending,
+		SortBy:          transform2.SortByKey,
+		Scope:           transform2.SortScopeNested,
 		ExcludePatterns: []string{"metadata/labels", "spec/*"},
 	}
-	sorted4 := transform.SortWithExclusions(root, config4)
+	sorted4 := transform2.SortWithExclusions(root, config4)
 	output4, _ := serializer.SerializeToString(sorted4, nil)
 	t.Logf("   Excluded paths remain unsorted ✓")
 
@@ -142,12 +143,12 @@ config:
 
 	// 6. Formatting options
 	t.Log("\n6. Formatting Options:")
-	formatConfig := &transform.FormatConfig{
+	formatConfig := &transform2.FormatConfig{
 		DefaultBlankLinesBeforeComment: 2,
 		ForceBlankLines:                true,
 		SectionMarkers:                 []string{"==="},
 	}
-	formatter := transform.NewFormatter(formatConfig)
+	formatter := transform2.NewFormatter(formatConfig)
 	formatted := formatter.Format(root)
 	outputFormatted, _ := serializer.SerializeToString(formatted, nil)
 	t.Logf("   Configurable spacing and formatting ✓")
@@ -171,11 +172,11 @@ apple: 3`
 
 	root, _ := parser.ParseString(mappingYAML)
 
-	config := &transform.SortConfig{
-		Mode:   transform.SortModeAscending,
-		SortBy: transform.SortByKey,
+	config := &transform2.SortConfig{
+		Mode:   transform2.SortModeAscending,
+		SortBy: transform2.SortByKey,
 	}
-	sorted := transform.NewSorter(config).Sort(root)
+	sorted := transform2.NewSorter(config).Sort(root)
 	output, _ := serializer.SerializeToString(sorted, nil)
 
 	// Verify keys are sorted
@@ -192,12 +193,12 @@ items:
 
 	root2, _ := parser.ParseString(seqYAML)
 
-	config2 := &transform.SortConfig{
-		Mode:   transform.SortModeAscending,
-		SortBy: transform.SortByValue,
-		Scope:  transform.SortScopeNested,
+	config2 := &transform2.SortConfig{
+		Mode:   transform2.SortModeAscending,
+		SortBy: transform2.SortByValue,
+		Scope:  transform2.SortScopeNested,
 	}
-	sorted2 := transform.NewSorter(config2).Sort(root2)
+	sorted2 := transform2.NewSorter(config2).Sort(root2)
 	output2, _ := serializer.SerializeToString(sorted2, nil)
 
 	if len(output2) > 0 {
@@ -205,10 +206,10 @@ items:
 	}
 
 	// Test KeepOriginal mode (default)
-	config3 := &transform.SortConfig{
-		Mode: transform.SortModeKeepOriginal,
+	config3 := &transform2.SortConfig{
+		Mode: transform2.SortModeKeepOriginal,
 	}
-	sorted3 := transform.NewSorter(config3).Sort(root)
+	sorted3 := transform2.NewSorter(config3).Sort(root)
 	output3, _ := serializer.SerializeToString(sorted3, nil)
 
 	originalOutput, _ := serializer.SerializeToString(root, nil)

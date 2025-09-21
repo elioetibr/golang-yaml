@@ -1985,6 +1985,6 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/go,csharp,ruby,python,node,terraform,terragrunt,java,macos,osx,linux,windows,visualstudio,visualstudiocode,intellij,intellij+iml,intellij+all,pycharm,pycharm+iml,pycharm+all,rubymine,rubymine+all,rubymine+iml,webstorm,webstorm+iml,webstorm+all,rider,sublimetext
 
 ### Personal Ignores ###
-/test/official-suite-report.json
-/test/official-suite-report.md
+/**/test/official-suite-report.json
+/**/test/official-suite-report.md
 /**/values-overridden.yaml

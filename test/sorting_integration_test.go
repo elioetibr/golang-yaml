@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elioetibr/golang-yaml/pkg/parser"
-	"github.com/elioetibr/golang-yaml/pkg/serializer"
-	"github.com/elioetibr/golang-yaml/pkg/transform"
+	"github.com/elioetibr/golang-yaml/v0/pkg/parser"
+	"github.com/elioetibr/golang-yaml/v0/pkg/serializer"
+	transform2 "github.com/elioetibr/golang-yaml/v0/pkg/transform"
 )
 
 // TestBasicSorting tests basic sorting functionality
@@ -14,7 +14,7 @@ func TestBasicSorting(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		mode     transform.SortMode
+		mode     transform2.SortMode
 		expected string
 	}{
 		{
@@ -24,7 +24,7 @@ zoo: animals
 bar: drinks
 foo: food
 apple: fruit`,
-			mode: transform.SortModeAscending,
+			mode: transform2.SortModeAscending,
 			expected: `apple: fruit
 bar: drinks
 foo: food
@@ -37,7 +37,7 @@ apple: fruit
 bar: drinks
 foo: food
 zoo: animals`,
-			mode: transform.SortModeDescending,
+			mode: transform2.SortModeDescending,
 			expected: `zoo: animals
 foo: food
 bar: drinks
@@ -50,7 +50,7 @@ zoo: animals
 bar: drinks
 foo: food
 apple: fruit`,
-			mode: transform.SortModeKeepOriginal,
+			mode: transform2.SortModeKeepOriginal,
 			expected: `zoo: animals
 bar: drinks
 foo: food
@@ -67,11 +67,11 @@ apple: fruit`,
 			}
 
 			// Sort
-			config := &transform.SortConfig{
+			config := &transform2.SortConfig{
 				Mode:   tc.mode,
-				SortBy: transform.SortByKey,
+				SortBy: transform2.SortByKey,
 			}
-			sorter := transform.NewSorter(config)
+			sorter := transform2.NewSorter(config)
 			sorted := sorter.Sort(root)
 
 			// Serialize
@@ -131,14 +131,14 @@ yellow: color`
 	}
 
 	// Sort with sections
-	config := &transform.SortConfig{
-		Mode:           transform.SortModeAscending,
-		SortBy:         transform.SortByKey,
-		Scope:          transform.SortScopeSection,
+	config := &transform2.SortConfig{
+		Mode:           transform2.SortModeAscending,
+		SortBy:         transform2.SortByKey,
+		Scope:          transform2.SortScopeSection,
 		SectionMarkers: []string{"===", "Section"},
 	}
 
-	sectionSorter := transform.NewSectionSorter(config)
+	sectionSorter := transform2.NewSectionSorter(config)
 	sorted := sectionSorter.SortWithSections(root)
 
 	// Serialize with comment preservation
@@ -223,14 +223,14 @@ data:
 	}
 
 	// Sort with exclusions - don't sort metadata/labels
-	config := &transform.SortConfig{
-		Mode:            transform.SortModeAscending,
-		SortBy:          transform.SortByKey,
-		Scope:           transform.SortScopeNested,
+	config := &transform2.SortConfig{
+		Mode:            transform2.SortModeAscending,
+		SortBy:          transform2.SortByKey,
+		Scope:           transform2.SortScopeNested,
 		ExcludePatterns: []string{"metadata/labels", "spec/template/metadata/labels"},
 	}
 
-	sorted := transform.SortWithExclusions(root, config)
+	sorted := transform2.SortWithExclusions(root, config)
 
 	// Serialize
 	output, err := serializer.SerializeToString(sorted, nil)
@@ -278,13 +278,13 @@ outer:
 	}
 
 	// Sort recursively
-	config := &transform.SortConfig{
-		Mode:   transform.SortModeAscending,
-		SortBy: transform.SortByKey,
-		Scope:  transform.SortScopeNested,
+	config := &transform2.SortConfig{
+		Mode:   transform2.SortModeAscending,
+		SortBy: transform2.SortByKey,
+		Scope:  transform2.SortScopeNested,
 	}
 
-	sorter := transform.NewSorter(config)
+	sorter := transform2.NewSorter(config)
 	sorted := sorter.Sort(root)
 
 	// Serialize
@@ -327,13 +327,13 @@ data:
 	}
 
 	// Sort with Kubernetes-style priority
-	config := &transform.SortConfig{
-		Mode:     transform.SortModeAscending,
-		SortBy:   transform.SortByKey,
+	config := &transform2.SortConfig{
+		Mode:     transform2.SortModeAscending,
+		SortBy:   transform2.SortByKey,
 		Priority: []string{"apiVersion", "kind", "metadata", "spec", "data"},
 	}
 
-	sorter := transform.NewPrioritySorter(config)
+	sorter := transform2.NewPrioritySorter(config)
 	sorted := sorter.Sort(root)
 
 	// Serialize
@@ -385,14 +385,14 @@ numbers:
 	}
 
 	// Sort sequences by value
-	config := &transform.SortConfig{
-		Mode:        transform.SortModeAscending,
-		SortBy:      transform.SortByValue,
-		Scope:       transform.SortScopeNested,
+	config := &transform2.SortConfig{
+		Mode:        transform2.SortModeAscending,
+		SortBy:      transform2.SortByValue,
+		Scope:       transform2.SortScopeNested,
 		NumericSort: true, // Enable numeric sorting for numbers
 	}
 
-	sorter := transform.NewSorter(config)
+	sorter := transform2.NewSorter(config)
 	sorted := sorter.Sort(root)
 
 	// Serialize
@@ -457,12 +457,12 @@ apple: fruit`
 	}
 
 	// Sort ascending
-	config := &transform.SortConfig{
-		Mode:   transform.SortModeAscending,
-		SortBy: transform.SortByKey,
+	config := &transform2.SortConfig{
+		Mode:   transform2.SortModeAscending,
+		SortBy: transform2.SortByKey,
 	}
 
-	sorter := transform.NewSorter(config)
+	sorter := transform2.NewSorter(config)
 	sorted := sorter.Sort(root)
 
 	// Serialize with comments

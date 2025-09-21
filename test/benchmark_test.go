@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elioetibr/golang-yaml/pkg/decoder"
-	"github.com/elioetibr/golang-yaml/pkg/encoder"
-	"github.com/elioetibr/golang-yaml/pkg/lexer"
-	"github.com/elioetibr/golang-yaml/pkg/parser"
-	"github.com/elioetibr/golang-yaml/pkg/serializer"
+	"github.com/elioetibr/golang-yaml/v0/pkg/decoder"
+	"github.com/elioetibr/golang-yaml/v0/pkg/encoder"
+	lexer2 "github.com/elioetibr/golang-yaml/v0/pkg/lexer"
+	"github.com/elioetibr/golang-yaml/v0/pkg/parser"
+	"github.com/elioetibr/golang-yaml/v0/pkg/serializer"
 )
 
 // Sample YAML documents for benchmarking
@@ -70,12 +70,12 @@ func generateLargeYAML() string {
 
 func BenchmarkLexerSmall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		l := lexer.NewLexerFromString(smallYAML)
+		l := lexer2.NewLexerFromString(smallYAML)
 		l.Initialize()
 
 		for {
 			token, err := l.NextToken()
-			if err != nil || token.Type == lexer.TokenEOF {
+			if err != nil || token.Type == lexer2.TokenEOF {
 				break
 			}
 		}
@@ -84,12 +84,12 @@ func BenchmarkLexerSmall(b *testing.B) {
 
 func BenchmarkLexerMedium(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		l := lexer.NewLexerFromString(mediumYAML)
+		l := lexer2.NewLexerFromString(mediumYAML)
 		l.Initialize()
 
 		for {
 			token, err := l.NextToken()
-			if err != nil || token.Type == lexer.TokenEOF {
+			if err != nil || token.Type == lexer2.TokenEOF {
 				break
 			}
 		}
@@ -98,12 +98,12 @@ func BenchmarkLexerMedium(b *testing.B) {
 
 func BenchmarkLexerLarge(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		l := lexer.NewLexerFromString(largeYAML)
+		l := lexer2.NewLexerFromString(largeYAML)
 		l.Initialize()
 
 		for {
 			token, err := l.NextToken()
-			if err != nil || token.Type == lexer.TokenEOF {
+			if err != nil || token.Type == lexer2.TokenEOF {
 				break
 			}
 		}
