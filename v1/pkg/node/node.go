@@ -111,6 +111,11 @@ type Section struct {
 	Nodes       []Node      // Nodes belonging to this section
 	Comments    *CommentGroup // Section-level comments
 
+	// Position in document
+	StartLine   int
+	EndLine     int
+	IndentLevel int
+
 	// Section formatting options
 	Formatting *SectionFormat
 }
@@ -197,6 +202,7 @@ func (n *SectionNode) GetSection() *Section   { return n.SectionData }
 // DocumentNode represents the root document containing sections
 type DocumentNode struct {
 	BaseNode
+	Content  Node       // Main document content
 	Sections []*Section
 	Nodes    []Node // Direct child nodes not in sections
 }
@@ -311,6 +317,34 @@ func (b *DefaultBuilder) BuildDocument(sections []*Section, nodes []Node) *Docum
 	return &DocumentNode{
 		Sections: sections,
 		Nodes:    nodes,
+	}
+}
+
+func (b *DefaultBuilder) CreateDocument() Node {
+	return &DocumentNode{
+		Sections: make([]*Section, 0),
+		Nodes:    make([]Node, 0),
+	}
+}
+
+func (b *DefaultBuilder) CreateMapping() Node {
+	return &MappingNode{
+		Pairs: make([]*MappingPair, 0),
+		Style: StyleBlock,
+	}
+}
+
+func (b *DefaultBuilder) CreateSequence() Node {
+	return &SequenceNode{
+		Items: make([]Node, 0),
+		Style: StyleBlock,
+	}
+}
+
+func (b *DefaultBuilder) CreateScalar(value string) Node {
+	return &ScalarNode{
+		Value: value,
+		Style: StylePlain,
 	}
 }
 
