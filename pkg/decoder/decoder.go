@@ -56,6 +56,33 @@ func nodeToValue(n node.Node, v reflect.Value) error {
 		return fmt.Errorf("invalid value")
 	}
 
+	// Handle nil node (empty document or only comments)
+	if n == nil {
+		// For empty documents, set to zero value of the target type
+		if v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				v.Set(reflect.New(v.Type().Elem()))
+			}
+			v = v.Elem()
+		}
+
+		// Initialize empty maps/slices if needed
+		switch v.Kind() {
+		case reflect.Map:
+			if v.IsNil() {
+				v.Set(reflect.MakeMap(v.Type()))
+			}
+		case reflect.Slice:
+			if v.IsNil() {
+				v.Set(reflect.MakeSlice(v.Type(), 0, 0))
+			}
+		case reflect.Interface:
+			// Set to nil for empty documents
+			v.Set(reflect.Zero(v.Type()))
+		}
+		return nil
+	}
+
 	// Handle pointers
 	if v.Kind() == reflect.Ptr {
 		if v.IsNil() {
@@ -83,6 +110,15 @@ func nodeToValue(n node.Node, v reflect.Value) error {
 
 // scalarToValue converts a scalar node to a Go value
 func scalarToValue(n *node.ScalarNode, v reflect.Value) error {
+	// Check if the value is valid and can be set
+	if !v.IsValid() {
+		return fmt.Errorf("cannot set value on invalid reflect.Value")
+	}
+
+	if !v.CanSet() {
+		return fmt.Errorf("cannot set value on non-settable reflect.Value of type %v", v.Type())
+	}
+
 	value := n.Value
 
 	switch v.Kind() {
@@ -120,7 +156,12 @@ func scalarToValue(n *node.ScalarNode, v reflect.Value) error {
 	case reflect.Interface:
 		// Try to parse the value as appropriate type
 		parsed := parser.ParseValue(value)
-		v.Set(reflect.ValueOf(parsed))
+		if parsed != nil {
+			v.Set(reflect.ValueOf(parsed))
+		} else {
+			// Set as string if parsing fails
+			v.Set(reflect.ValueOf(value))
+		}
 
 	default:
 		return fmt.Errorf("cannot unmarshal scalar into %v", v.Type())
@@ -193,6 +234,11 @@ func mappingToValue(n *node.MappingNode, v reflect.Value) error {
 
 // mappingToMap converts a mapping node to a Go map
 func mappingToMap(n *node.MappingNode, v reflect.Value) error {
+	// Check if the value is valid
+	if !v.IsValid() {
+		return fmt.Errorf("invalid map value")
+	}
+
 	// Create map if nil
 	if v.IsNil() {
 		v.Set(reflect.MakeMap(v.Type()))
@@ -207,22 +253,44 @@ func mappingToMap(n *node.MappingNode, v reflect.Value) error {
 			return fmt.Errorf("non-scalar map keys not supported")
 		}
 
-		// Create values-with-comments for key and value
+		// Create values for key and value
 		keyVal := reflect.New(v.Type().Key()).Elem()
 		valVal := reflect.New(v.Type().Elem()).Elem()
+
+		// Check if values are valid before setting
+		if !keyVal.IsValid() || !valVal.IsValid() {
+			// Skip this pair if we can't create valid values
+			continue
+		}
 
 		// Set the key
 		if v.Type().Key().Kind() == reflect.String {
 			keyVal.SetString(keyStr)
 		} else {
-			if err := scalarToValue(&node.ScalarNode{Value: keyStr}, keyVal); err != nil {
-				return err
+			if keyVal.CanSet() {
+				if err := scalarToValue(&node.ScalarNode{Value: keyStr}, keyVal); err != nil {
+					// Skip this key if we can't set it
+					continue
+				}
 			}
 		}
 
 		// Set the value
 		if err := nodeToValue(pair.Value, valVal); err != nil {
-			return err
+			// If we can't set the value, try setting it as interface{}
+			if v.Type().Elem().Kind() == reflect.Interface {
+				var iface interface{}
+				ifaceVal := reflect.ValueOf(&iface).Elem()
+				if err := nodeToValue(pair.Value, ifaceVal); err == nil {
+					valVal = ifaceVal
+				} else {
+					// Skip this pair if we can't convert the value
+					continue
+				}
+			} else {
+				// Skip this pair if we can't convert the value
+				continue
+			}
 		}
 
 		v.SetMapIndex(keyVal, valVal)
