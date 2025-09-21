@@ -43,13 +43,26 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     needs: [ gitversion ]
     strategy:
       fail-fast: false
       matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        arch:
+          - amd64
+          - arm64
         go:
+          - "1.23"
+          - "1.24"
           - "1.25"
+        exclude:
+          # Windows doesn't support ARM64 runners on GitHub Actions
+          - os: windows-latest
+            arch: arm64
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v5
@@ -82,8 +95,148 @@ jobs:
       - name: Go Vet
         run: go vet ./...
 
-      - name: Run tests
-        run: go test -v ./pkg/...
+      - name: Run tests with coverage and race detection
+        shell: bash
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./pkg/... 2>&1 | tee test-output.txt
+          echo "TEST_EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_ENV
+
+      - name: Generate test summary
+        if: always()
+        shell: bash
+        run: |
+          cat > test-summary.md << 'EOF'
+          # Test Results Summary 📊
+
+          ## Configuration
+          - **Go Version:** ${{ matrix.go }}
+          - **OS:** ${{ runner.os }}
+          - **Architecture:** ${{ matrix.arch }}
+          - **Commit:** ${{ github.sha }}
+          - **Branch:** ${{ github.ref_name }}
+
+          ## Test Execution Results
+          EOF
+
+          # Parse test output for summary
+          if [ -f test-output.txt ]; then
+            # Count test results
+            TOTAL_PACKAGES=$(grep -c "^ok\|^FAIL" test-output.txt || echo 0)
+            PASSED_PACKAGES=$(grep -c "^ok" test-output.txt || echo 0)
+            FAILED_PACKAGES=$(grep -c "^FAIL" test-output.txt || echo 0)
+            SKIPPED_TESTS=$(grep -c "SKIP" test-output.txt || echo 0)
+
+            # Extract timing information
+            TOTAL_TIME=$(grep "^ok\|^FAIL" test-output.txt | awk '{sum+=$NF} END {printf "%.3f", sum}' || echo "0")
+
+            cat >> test-summary.md << EOF
+
+          ### Package Summary
+          | Metric | Value |
+          |--------|-------|
+          | Total Packages | $TOTAL_PACKAGES |
+          | ✅ Passed | $PASSED_PACKAGES |
+          | ❌ Failed | $FAILED_PACKAGES |
+          | ⏭️ Skipped Tests | $SKIPPED_TESTS |
+          | ⏱️ Total Time | ${TOTAL_TIME}s |
+
+          EOF
+
+            # Add detailed results
+            echo "### Detailed Package Results" >> test-summary.md
+            echo "| Package | Status | Duration | Coverage |" >> test-summary.md
+            echo "|---------|--------|----------|----------|" >> test-summary.md
+
+            while IFS= read -r line; do
+              if [[ $line =~ ^(ok|FAIL)[[:space:]]+(github.com[^[:space:]]+)[[:space:]]+([0-9.]+s) ]]; then
+                STATUS="${BASH_REMATCH[1]}"
+                PACKAGE="${BASH_REMATCH[2]}"
+                DURATION="${BASH_REMATCH[3]}"
+
+                # Get coverage for this package if available
+                COVERAGE=$(grep "coverage:" test-output.txt | grep "$PACKAGE" | sed -n 's/.*coverage: \([0-9.]*\)%.*/\1%/p' | head -1 || echo "N/A")
+
+                if [ "$STATUS" == "ok" ]; then
+                  STATUS_ICON="✅"
+                else
+                  STATUS_ICON="❌"
+                fi
+
+                # Shorten package name for readability
+                SHORT_PACKAGE=$(echo "$PACKAGE" | sed 's|github.com/elioetibr/golang-yaml/||')
+                echo "| $SHORT_PACKAGE | $STATUS_ICON $STATUS | $DURATION | $COVERAGE |" >> test-summary.md
+              fi
+            done < test-output.txt
+
+            # Add any test failures
+            if [ "$FAILED_PACKAGES" -gt 0 ]; then
+              echo "" >> test-summary.md
+              echo "### ❌ Test Failures" >> test-summary.md
+              echo '```' >> test-summary.md
+              grep -A 5 "FAIL:" test-output.txt || true
+              echo '```' >> test-summary.md
+            fi
+
+            # Add any race conditions detected
+            if grep -q "WARNING: DATA RACE" test-output.txt; then
+              echo "" >> test-summary.md
+              echo "### ⚠️ Race Conditions Detected" >> test-summary.md
+              echo '```' >> test-summary.md
+              grep -A 10 "WARNING: DATA RACE" test-output.txt || true
+              echo '```' >> test-summary.md
+            fi
+          fi
+
+          # Output the summary
+          cat test-summary.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Calculate coverage percentage
+        if: always()
+        shell: bash
+        run: |
+          if [ -f coverage.out ]; then
+            COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}')
+            echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+            echo "### 📊 Total Test Coverage: $COVERAGE" >> $GITHUB_STEP_SUMMARY
+
+            # Add coverage breakdown by package
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Coverage by Package" >> $GITHUB_STEP_SUMMARY
+            echo "| Package | Coverage |" >> $GITHUB_STEP_SUMMARY
+            echo "|---------|----------|" >> $GITHUB_STEP_SUMMARY
+            go tool cover -func=coverage.out | grep -v "total:" | grep "github.com" | while read -r line; do
+              FUNC=$(echo "$line" | awk '{print $1}' | sed 's|github.com/elioetibr/golang-yaml/||' | sed 's|/[^/]*$||' | sort -u)
+              COV=$(echo "$line" | awk '{print $3}')
+              echo "| $FUNC | $COV |" >> $GITHUB_STEP_SUMMARY
+            done | sort -u
+          fi
+
+      - name: Upload test coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}-${{ matrix.arch }}-go${{ matrix.go }}
+          path: coverage.out
+          retention-days: 7
+
+      - name: Upload test results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}-${{ matrix.arch }}-go${{ matrix.go }}
+          path: test-output.txt
+          retention-days: 7
+
+      - name: Check test results
+        if: always()
+        shell: bash
+        run: |
+          if [ "${TEST_EXIT_CODE}" != "0" ]; then
+            echo "❌ Tests failed with exit code ${TEST_EXIT_CODE}" >> $GITHUB_STEP_SUMMARY
+            exit ${TEST_EXIT_CODE}
+          else
+            echo "✅ All tests passed successfully!" >> $GITHUB_STEP_SUMMARY
+          fi
 
   release:
     name: Release

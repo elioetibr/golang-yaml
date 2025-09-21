@@ -325,6 +325,19 @@ func (p *Parser) parseBlockMapping(indent int) node.Node {
 			if p.current != nil && p.current.Type == lexer.TokenMappingValue {
 				p.advance() // skip ':'
 
+				// Check for inline comment after colon but before value
+				var inlineComment *lexer.Token
+				if len(p.commentQueue) > 0 {
+					for i, comment := range p.commentQueue {
+						if comment.IsInline {
+							inlineComment = comment
+							// Remove from queue
+							p.commentQueue = append(p.commentQueue[:i], p.commentQueue[i+1:]...)
+							break
+						}
+					}
+				}
+
 				// Check if this is a merge key
 				isMergeKey := false
 				if scalarKey, ok := key.(*node.ScalarNode); ok && scalarKey.Value == "<<" {
@@ -337,6 +350,15 @@ func (p *Parser) parseBlockMapping(indent int) node.Node {
 					value = p.parseNode(p.current.Column)
 				} else {
 					value = p.nodeBuilder.BuildScalar("", node.StylePlain)
+				}
+
+				// If value is a mapping and we have an inline comment, associate it
+				if inlineComment != nil {
+					if mapping, ok := value.(*node.MappingNode); ok {
+						mapping.LineComment = &node.CommentGroup{
+							Comments: []string{inlineComment.Value},
+						}
+					}
 				}
 
 				// Reset merge key flag
@@ -353,6 +375,20 @@ func (p *Parser) parseBlockMapping(indent int) node.Node {
 			if p.current != nil && p.current.Type == lexer.TokenMappingValue {
 				p.advance() // skip ':'
 
+				// Check for inline comment after colon but before value
+				var inlineComment *lexer.Token
+				if len(p.commentQueue) > 0 {
+					// Check if there's an inline comment on the same line as the colon
+					for i, comment := range p.commentQueue {
+						if comment.IsInline {
+							inlineComment = comment
+							// Remove from queue
+							p.commentQueue = append(p.commentQueue[:i], p.commentQueue[i+1:]...)
+							break
+						}
+					}
+				}
+
 				// Check if this is a merge key
 				isMergeKey := false
 				if scalarKey, ok := key.(*node.ScalarNode); ok && scalarKey.Value == "<<" {
@@ -365,6 +401,26 @@ func (p *Parser) parseBlockMapping(indent int) node.Node {
 					value = p.parseNode(p.current.Column)
 				} else {
 					value = p.nodeBuilder.BuildScalar("", node.StylePlain)
+				}
+
+				// If we have an inline comment, associate it with the value
+				if inlineComment != nil {
+					if mapping, ok := value.(*node.MappingNode); ok {
+						// Store the inline comment in the mapping's LineComment
+						mapping.LineComment = &node.CommentGroup{
+							Comments: []string{inlineComment.Value},
+						}
+					} else if seq, ok := value.(*node.SequenceNode); ok {
+						// Store the inline comment in the sequence's LineComment
+						seq.LineComment = &node.CommentGroup{
+							Comments: []string{inlineComment.Value},
+						}
+					} else if scalar, ok := value.(*node.ScalarNode); ok {
+						// Store the inline comment in the scalar's LineComment
+						scalar.LineComment = &node.CommentGroup{
+							Comments: []string{inlineComment.Value},
+						}
+					}
 				}
 
 				// Reset merge key flag

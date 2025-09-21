@@ -42,7 +42,7 @@ func MarshalWithOptions(v interface{}, opts *serializer.Options) ([]byte, error)
 	return []byte(result), nil
 }
 
-// Encoder writes YAML values to an output stream
+// Encoder writes YAML values-with-comments to an output stream
 type Encoder struct {
 	writer  io.Writer
 	options *serializer.Options
@@ -78,7 +78,7 @@ func (e *Encoder) Encode(v interface{}) error {
 func valueToNode(v reflect.Value) (node.Node, error) {
 	builder := &node.DefaultBuilder{}
 
-	// Handle nil and zero values
+	// Handle nil and zero values-with-comments
 	if !v.IsValid() || (v.Kind() == reflect.Ptr && v.IsNil()) {
 		return builder.BuildScalar("null", node.StylePlain), nil
 	}

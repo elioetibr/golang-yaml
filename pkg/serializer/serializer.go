@@ -128,9 +128,13 @@ func (s *Serializer) serializeNodeWithComments(n node.Node, indent int, emitComm
 		return fmt.Errorf("unknown node type: %T", n)
 	}
 
-	// Handle inline comments
+	// Handle inline comments (skip for mappings/sequences as they're handled specially)
 	if s.options.PreserveComments && emitComments {
-		s.emitComments(n, node.CommentPositionInline, indent)
+		if _, isMapping := n.(*node.MappingNode); !isMapping {
+			if _, isSequence := n.(*node.SequenceNode); !isSequence {
+				s.emitComments(n, node.CommentPositionInline, indent)
+			}
+		}
 	}
 
 	// Handle comments after the node
@@ -289,9 +293,30 @@ func (s *Serializer) serializeBlockMapping(m *node.MappingNode, indent int) erro
 		// Check if value is complex (needs new line)
 		if s.isComplexNode(pair.Value) {
 			s.write(":")
+
+			// Check if the value (mapping/sequence) has an inline comment
+			hasInlineComment := false
+			if s.options.PreserveComments {
+				if mapping, ok := pair.Value.(*node.MappingNode); ok && mapping.LineComment != nil {
+					// Write inline comment for mapping key
+					s.write("  ")
+					for _, comment := range mapping.LineComment.Comments {
+						s.write(comment)
+					}
+					hasInlineComment = true
+				} else if seq, ok := pair.Value.(*node.SequenceNode); ok && seq.LineComment != nil {
+					// Write inline comment for sequence key
+					s.write("  ")
+					for _, comment := range seq.LineComment.Comments {
+						s.write(comment)
+					}
+					hasInlineComment = true
+				}
+			}
+
 			s.writeLine("")
 			// Value comments are handled by serializeNode
-			err = s.serializeNodeWithComments(pair.Value, indent+s.options.Indent, true)
+			err = s.serializeNodeWithComments(pair.Value, indent+s.options.Indent, !hasInlineComment)
 		} else {
 			s.write(": ")
 			// Value comments are handled by serializeNode
@@ -402,14 +427,14 @@ func (s *Serializer) needsQuoting(value string) bool {
 	}
 
 	// Don't quote boolean and null literals
-	// When the encoder creates these from actual bool/nil values,
+	// When the encoder creates these from actual bool/nil values-with-comments,
 	// they come as plain scalars and should not be quoted
 	lowerValue := strings.ToLower(value)
 	if lowerValue == "true" || lowerValue == "false" || lowerValue == "null" {
 		return false
 	}
 
-	// Quote other YAML special values that might be ambiguous
+	// Quote other YAML special values-with-comments that might be ambiguous
 	specialValues := []string{"yes", "no", "on", "off"}
 	for _, special := range specialValues {
 		if lowerValue == special {

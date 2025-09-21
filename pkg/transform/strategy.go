@@ -17,10 +17,10 @@ type SortStrategy interface {
 	// ShouldSort returns true if sorting should be applied
 	ShouldSort() bool
 
-	// Compare compares two values and returns true if a should come before b
+	// Compare compares two values-with-comments and returns true if a should come before b
 	Compare(a, b string) bool
 
-	// PreProcess can modify values before comparison (e.g., lowercase)
+	// PreProcess can modify values-with-comments before comparison (e.g., lowercase)
 	PreProcess(value string) string
 
 	// CanSort checks if a specific node can be sorted by this strategy

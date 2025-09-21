@@ -23,7 +23,7 @@ type SortBy int
 
 const (
 	SortByKey   SortBy = iota // Sort mappings by their keys
-	SortByValue               // Sort by values (for sequences or mappings)
+	SortByValue               // Sort by values-with-comments (for sequences or mappings)
 )
 
 // SortScope defines the scope of sorting
@@ -99,7 +99,7 @@ func NewSortByKeyConfig(mode SortMode) *SortConfig {
 	return config
 }
 
-// NewSortByValueConfig creates config for sorting by values (sequences and mappings)
+// NewSortByValueConfig creates config for sorting by values-with-comments (sequences and mappings)
 func NewSortByValueConfig(mode SortMode) *SortConfig {
 	config := DefaultSortConfig()
 	config.Mode = mode
@@ -136,7 +136,7 @@ func (s *Sorter) Sort(n node.Node) node.Node {
 	}
 }
 
-// sortMapping sorts a mapping node by keys or values
+// sortMapping sorts a mapping node by keys or values-with-comments
 func (s *Sorter) sortMapping(m *node.MappingNode) *node.MappingNode {
 	// Check if this mapping should be excluded
 	for _, pattern := range s.config.ExcludePatterns {
@@ -145,9 +145,16 @@ func (s *Sorter) sortMapping(m *node.MappingNode) *node.MappingNode {
 		}
 	}
 
+	// First, transfer inter-field comments to fix comment association
+	// Comments between key-value pairs are often attached to the previous value
+	// instead of the next key where they logically belong
+	pairs := make([]*node.MappingPair, len(m.Pairs))
+	copy(pairs, m.Pairs)
+	s.transferInterFieldComments(pairs)
+
 	// Create sortable pairs with their comments
-	sortablePairs := make([]*sortablePair, len(m.Pairs))
-	for i, pair := range m.Pairs {
+	sortablePairs := make([]*sortablePair, len(pairs))
+	for i, pair := range pairs {
 		var sortValue string
 		if s.config.SortBy == SortByKey {
 			sortValue = s.getNodeString(pair.Key)
@@ -199,9 +206,9 @@ func (s *Sorter) sortMapping(m *node.MappingNode) *node.MappingNode {
 	return result
 }
 
-// sortSequence sorts a sequence node's values
+// sortSequence sorts a sequence node's values-with-comments
 func (s *Sorter) sortSequence(seq *node.SequenceNode) *node.SequenceNode {
-	// Sequences only have values (no keys), so only sort if SortBy == SortByValue
+	// Sequences only have values-with-comments (no keys), so only sort if SortBy == SortByValue
 	if s.config.SortBy != SortByValue {
 		// Don't sort the sequence itself, but may need to sort nested structures
 		if s.config.Scope == SortScopeNested {
@@ -289,6 +296,26 @@ func (s *Sorter) compare(a, b string) bool {
 		return a > b
 	}
 	return a < b
+}
+
+// transferInterFieldComments moves comments from value nodes to the next key node
+// This fixes the parser's comment association where comments between pairs
+// get attached to the previous value instead of the next key
+func (s *Sorter) transferInterFieldComments(pairs []*node.MappingPair) {
+	for i := 0; i < len(pairs)-1; i++ {
+		// Check if the value has a head comment that might belong to the next key
+		if scalar, ok := pairs[i].Value.(*node.ScalarNode); ok {
+			if scalar.HeadComment != nil && len(scalar.HeadComment.Comments) > 0 {
+				// Transfer the comment to the next key if it doesn't have one
+				if nextKey, ok := pairs[i+1].Key.(*node.ScalarNode); ok {
+					if nextKey.HeadComment == nil {
+						nextKey.HeadComment = scalar.HeadComment
+						scalar.HeadComment = nil
+					}
+				}
+			}
+		}
+	}
 }
 
 // Helper functions
